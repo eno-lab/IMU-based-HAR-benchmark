@@ -46,8 +46,7 @@ for datasets in [
 #['pamap2'],
 #[f'pamap2_losocv_{i}' for i in range(1, 9)],
 #['opportunity'],
-#[f'ucihar_losocv_{i}' for i in range(1, 31)],
-[f'ucihar_losocv_{i}' for i in range(11, 15)],
+[f'ucihar_losocv_{i}' for i in range(1, 31)],
 #['ucihar'],
 #['daphnet'],
 ]:
