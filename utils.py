@@ -21,7 +21,7 @@ import seaborn as sns
 from scipy.stats import stats
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical
-
+from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
 from datareader import DataReader
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}. Let's avoid too many logs

@@ -333,7 +333,6 @@ class DataReader:
                 ['S09R01.txt']
                 ['S10R01.txt']  # 1 only
         ]
-            ]
 
         n -=1
         assert 0 <= n <= 9
