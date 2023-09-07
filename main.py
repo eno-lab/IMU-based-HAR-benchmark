@@ -20,6 +20,9 @@ from sklearn.metrics import confusion_matrix, classification_report
 # Util Imports
 from utils import *
 
+# import models
+from models.ispl import * 
+
 from tensorflow.keras.layers import LeakyReLU, PReLU, ELU, BatchNormalization
 # ................................................................................................ #
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -41,7 +44,6 @@ no_weight = True
 #     tensor_debug_mode="FULL_HEALTH",
 #     circular_buffer_size=-1)
 
-from models import extract_imu_tensor_func_oppotunity, extract_imu_tensor_func_ucihar, extract_imu_tensor_func_pamap2
 import re
 
 for datasets in [
@@ -136,8 +138,8 @@ for datasets in [
                         print(f"Training {model_name} : {datetime.now()}")
                         print('###############################################################################')
                         log_dir = os.path.abspath(f'logs/fit/{dataset}/{training_id}/{model_name}')
-                        #save_name = os.path.abspath(f"models/{dataset}/{training_id}/{model_name}_tf")
-                        save_name = os.path.abspath(f"models/{dataset}/{training_id}/{model_name}.h5") # faster
+                        #save_name = os.path.abspath(f"trained_models/{dataset}/{training_id}/{model_name}_tf")
+                        save_name = os.path.abspath(f"trained_models/{dataset}/{training_id}/{model_name}.h5") # faster
 
                         input_shape = X_train.shape
 

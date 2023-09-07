@@ -23,7 +23,6 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoa
 from tensorflow.keras.utils import to_categorical
 
 from datareader import DataReader
-from models import *
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}. Let's avoid too many logs
 
@@ -178,7 +177,7 @@ def transform_y(y, nr_classes, dataset):
 
 # Model and dataset evaluation
 def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, patience=10,
-                   batch_size=64, _save_name='models/please_provide_a_name.keras', _log_dir='logs/fit', no_weight=True):
+                   batch_size=64, _save_name='trained_models/please_provide_a_name.h5', _log_dir='logs/fit', no_weight=True):
     """
     Returns the best trained model and history objects of the currently provided train & test set
     """
