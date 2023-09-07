@@ -16,22 +16,11 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
 import tensorflow as tf
 
-
-out_loss = 'binary_crossentropy'
-out_activ = 'sigmoid'
-
-def init_loss_and_activation(dataset):
-    global out_loss, out_activ
-    if dataset == 'daphnet':
-        out_loss = 'binary_crossentropy'
-        out_activ = 'sigmoid'
-    else:
-        out_loss = CategoricalCrossentropy(reduction=Reduction.AUTO, name='output_loss')
-        out_activ = 'softmax'
-
 # CNN Model
 def cnn(x_shape,
         n_classes,
+        out_loss, 
+        out_activ, 
         filters,
         fc_hidden_nodes,
         learning_rate=0.01, regularization_rate=0.01,
@@ -70,6 +59,8 @@ def cnn(x_shape,
 # CNN-LSTM Model
 def cnn_lstm(x_shape,
              n_classes,
+             out_loss, 
+             out_activ, 
              n_hidden=128,
              learning_rate=0.01,
              n_steps=4,
@@ -112,6 +103,8 @@ def cnn_lstm(x_shape,
 # Vanilla LSTM Model
 def vanilla_lstm(x_shape,
                  n_classes,
+                 out_loss, 
+                 out_activ, 
                  n_hidden=128,
                  learning_rate=0.01,
                  regularization_rate=0.01,
@@ -135,6 +128,8 @@ def vanilla_lstm(x_shape,
 # Stacked LSTM Model
 def stacked_lstm(x_shape,
                  n_classes,
+                 out_loss, 
+                 out_activ, 
                  n_hidden=128,
                  learning_rate=0.01,
                  regularization_rate=0.01,
@@ -164,6 +159,8 @@ def stacked_lstm(x_shape,
 # BiLSTM Model
 def bilstm(x_shape,
            n_classes,
+           out_loss, 
+           out_activ, 
            n_hidden=128,
            learning_rate=0.01,
            regularization_rate=0.01,
@@ -190,6 +187,8 @@ def bilstm(x_shape,
 # Yong Li and andLuping Wang, Human Activity Recognition Based on Residual Network and BiLSTM
 def residual_bilstm(x_shape,
            n_classes,
+           out_loss, 
+           out_activ, 
            n_hidden=64,
            learning_rate=0.00003,
            #regularization_rate=0.01,
@@ -226,6 +225,8 @@ def residual_bilstm(x_shape,
 
 def bilstm(x_shape,
            n_classes,
+           out_loss, 
+           out_activ, 
            n_hidden=128,
            learning_rate=0.01,
            regularization_rate=0.01,
@@ -252,6 +253,8 @@ def bilstm(x_shape,
 # iSPLInception Model
 def ispl_inception(x_shape,
                    n_classes,
+                   out_loss, 
+                   out_activ, 
                    filters_number,
                    network_depth=5,
                    use_residual=True,
@@ -354,6 +357,8 @@ from tensorflow.keras.layers import Activation
 from tensorflow.keras import activations
 def ResNet_SE(x_shape,
               n_classes,
+              out_loss, 
+              out_activ, 
               learning_rate=0.01,
               regularization_rate=0.01,
               metrics=['accuracy']):
@@ -411,6 +416,8 @@ def ResNet_SE(x_shape,
 from tensorflow.keras.layers import GRU
 def icg_net(x_shape,
            n_classes,
+           out_loss, 
+           out_activ, 
            n_steps=4,
            length=32,
            n_signals=9,

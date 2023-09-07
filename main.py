@@ -60,7 +60,7 @@ for datasets in [
 
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = load_dataset(dataset)
 
-        init_loss_and_activation(dataset) # このファイル依存性をなくすべき
+        out_loss, out_activ = get_loss_and_activation(dataset) # このファイル依存性をなくすべき
 
         # Models to run
         for list_of_models in [
@@ -221,7 +221,7 @@ for datasets in [
                             raise NotImplementedError(f'The model {model_name} is not implemented yet')
 
                         # Create and initialize the Model
-                        model = eval(model_name + f"(input_shape, n_classes, metrics=METRICS, **hyperparameters)")
+                        model = eval(model_name + f"(input_shape, n_classes, out_loss, out_activ, metrics=METRICS, **hyperparameters)")
 
                         model.summary()
 

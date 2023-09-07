@@ -116,6 +116,13 @@ def get_data_configuration(dataset):
     return n_signals, win_size, n_classes, n_steps, length
 
 
+def get_loss_and_activation(dataset):
+    if dataset == 'daphnet':
+        return 'binary_crossentropy', 'sigmoid'
+    else:
+        return CategoricalCrossentropy(reduction=Reduction.AUTO, name='output_loss'), 'softmax'
+
+
 def windows(data, size):
     start = 0
     while start < len(data):
@@ -227,7 +234,19 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, pat
 
 def load_dataset(dataset, plot_details=False):
     """
-    dataset: 'daphnet', 'pamap2', 'opportunity, 'opportunity_task_a', 'opportunity_task_b1', 'opportunity_task_c', 'ucihar', 'ispl'
+    dataset: 'daphnet', 
+             'daphnet_losocv_i', where 1 <= i <= 10
+             'pamap2', 
+             'pamap2_full', 
+             'pamap2_losocv_i', where 1 <= i <= 8
+             'pamap2_full_losocv_i', where 1 <= i <= 9
+             'opportunity, 
+             'opportunity_task_a', 
+             'opportunity_task_b1', 
+             'opportunity_task_c', 
+             'ucihar', 
+             'ucihar_losocv_i', where 1 <= i <=  30
+             'ispl'
     """
 
     if dataset.startswith('opportunity_'):

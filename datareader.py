@@ -58,6 +58,13 @@ class DataReader:
             n = int(dataset[len('pamap2_losocv_'):])
             self.data, self.idToLabel = self._read_pamap2_losocv(datapath.rstrip("/"), n)
             self.save_data(dataset, datapath.rstrip("/") + "/")
+        elif dataset == 'pamap2_full':
+            self.data, self.idToLabel = self._read_pamap2_full(datapath.rstrip("/"))
+            self.save_data(dataset, datapath.rstrip("/") + "/")
+        elif dataset.startswith('pamap2_full_losocv_'):
+            n = int(dataset[len('pamap2_full_losocv_'):])
+            self.data, self.idToLabel = self._read_pamap2_full_losocv(datapath.rstrip("/"), n)
+            self.save_data(dataset, datapath.rstrip("/") + "/")
         elif dataset == 'ucihar':
             self.data, self.idToLabel = self._read_ucihar(datapath.rstrip("/"))
             self.save_data(dataset, datapath.rstrip("/") + "/")
@@ -164,7 +171,7 @@ class DataReader:
         ]
         files = {}
         n -=1
-        assert 0 <= n < 8
+        assert 0 <= n <= 8
 
         files['test'] = [dat_files[n]]
 
@@ -192,7 +199,7 @@ class DataReader:
         ]
         files = {}
         n -=1
-        assert 0 <= n < 8
+        assert 0 <= n <= 7
 
         files['test'] = [dat_files[n]]
 
@@ -312,36 +319,43 @@ class DataReader:
 
     def _read_daphnet_losocv(self, datapath, n):
         """ 
-            Subjects 4 and 10 are assigned for train.
-            Others are split for losocv.
-            n : 1<= n <= 8
+            n : 1<= n <= 10
         """
-        files_for_split = [
+        subjects = [
                 ['S01R01.txt', 'S01R02.txt'],
                 ['S02R01.txt', 'S02R02.txt'],
                 ['S03R01.txt', 'S03R02.txt', 'S03R03.txt'], # R03 includes label:1 only.
+                ['S04R01.txt'], # 1 only
                 ['S05R01.txt', 'S05R02.txt'],
                 ['S06R01.txt', 'S06R02.txt'], # R02 includes label:1 only.
                 ['S07R01.txt', 'S07R02.txt'],
                 ['S08R01.txt'],
                 ['S09R01.txt']
+                ['S10R01.txt']  # 1 only
         ]
-        train = [
-            'S04R01.txt', # 1 only
-            'S10R01.txt' # 1 only
             ]
 
-        files = self._build_losocv(files_for_split, n)
+        n -=1
+        assert 0 <= n <= 9
+        
+        train = []
         valid = []
         test = []
-        for f_list in files['train']:
-            train.extend(f_list)
-        for f_list in files['valid']:
-            valid.extend(f_list)
-        for f_list in files['test']:
-            test.extend(f_list)
+        _used = []
 
-        files = {'train': train, 'validation': valid, 'test': test}
+        test.extend(subjects[n])
+        _used.append(subjects[n])
+
+        if n == 4:
+            valid.extend(subjects[6])# 106
+            _used.append(subjects[6])
+        else:
+            valid.extend(subjecits[4]) # 105
+            _used.append(subjects[4])
+
+        files['train'] = [ s for s in subjects if s not in _used ]
+        files['validation'] = valid
+        files['test'] = test
 
         return self._read_daphnet(datapath, files)
 
