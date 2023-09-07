@@ -6,6 +6,9 @@
 # usage       :Call it in main.py.
 # notes       :Majority imports are done in here. Processing of the dataset, Model training
 #              and evaluation are also done within this script.
+
+# TODO add our information
+
 import ast
 import os
 

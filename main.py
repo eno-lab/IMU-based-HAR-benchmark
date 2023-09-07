@@ -9,6 +9,8 @@
 #              models, decide which items to add to the report, etc... We have also configured gpu memory growth.
 # outputs     :reports, images, logs (TensorBoard), and trained models.
 
+# TODO add our information 
+
 from datetime import datetime
 from time import time
 

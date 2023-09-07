@@ -6,6 +6,9 @@
 # usage       :provide the values to be plotted before running results.py.
 # notes       :Use his script along with the result_file.txt file which contains the results for iSPLInception.
 #              Also don't forget to change the dataset name and where the result images should be saved.
+
+# TODO add our information
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
