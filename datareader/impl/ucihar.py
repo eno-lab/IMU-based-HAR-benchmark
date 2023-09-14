@@ -11,6 +11,8 @@ from ..core import DataReader
 
 class Ucihar(DataReader):
     def __init__(self, dataset):
+        super().__init__(dataset, 'ucihar', 128)
+
         label_map = [
             (1, 'Walking'),
             (2, 'Walking_Upstairs'),
@@ -20,8 +22,6 @@ class Ucihar(DataReader):
             (6, 'Laying')
         ]
         self._id_to_label= [x[1] for x in label_map]
-
-        super().__init__(dataset, 'ucihar', 128)
 
         if self.is_ratio():
             self.split_with_ratio()
