@@ -19,10 +19,11 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import stats
+from tensorflow.keras.model import load_model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
-from datareader import DataReader
+from datareader.ispl import DataReader
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}. Let's avoid too many logs
 
@@ -36,11 +37,11 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 # **************** Dataset Configurations ******************
 def get_data_configuration(dataset):
     if dataset == 'daphnet':
-        n_signals = 9  # Ankle acc - x,y,z; Upper Leg acc - x,y,z; Trunk acc - x,y,z;
+        n_signals =   9  # Ankle acc - x,y,z; Upper Leg acc - x,y,z; Trunk acc - x,y,z;
         win_size = 192  # 1 sec -> 64 | 2.56 (3) sec -> 192 | 5 sec -> 320 # sampling rate = 64hz
-        n_classes = 2  # 1 - no freeze (walk, stand, turn); 2 - freeze
-        n_steps = 3  # Since we are using 3 seconds and 192 is divisible by 3
-        length = 64  # Split each window of 192 time steps into sub sequences for the cnn
+        n_classes =  2  # 1 - no freeze (walk, stand, turn); 2 - freeze
+        n_steps =    3  # Since we are using 3 seconds and 192 is divisible by 3
+        length =    64  # Split each window of 192 time steps into sub sequences for the cnn
 
     elif dataset == 'ispl':
         n_signals = 9  # acc - x,y,z; gyro - x,y,z; lacc - x,y,z;
@@ -116,7 +117,7 @@ def get_data_configuration(dataset):
 
 
 def get_loss_and_activation(dataset):
-    if dataset == 'daphnet':
+    if dataset.startswith('daphnet'):
         return 'binary_crossentropy', 'sigmoid'
     else:
         return CategoricalCrossentropy(reduction=Reduction.AUTO, name='output_loss'), 'softmax'
@@ -176,7 +177,7 @@ def transform_y(y, nr_classes, dataset):
 
 
 # Model and dataset evaluation
-def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, patience=10,
+def evaluate_model(_model, train_gen, valid_gen, _epochs=20, patience=10,
                    batch_size=64, _save_name='trained_models/please_provide_a_name.h5', _log_dir='logs/fit', no_weight=True):
     """
     Returns the best trained model and history objects of the currently provided train & test set
@@ -217,13 +218,12 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, pat
     print(class_weight)
 
     # Training the model
-    history = _model.fit(_X_train,
-                         _y_train,
+    history = _model.fit(train_gen
                          batch_size=batch_size,
-                         validation_data=(_X_test, _y_test),
+                         validation_data=valid_gen,
                          epochs=_epochs,
                          verbose=1,
-                         # shuffle=True,
+                         #shuffle=True,
                          use_multiprocessing=True,
                          class_weight = class_weight,
                          callbacks=[cp_callback, tensorboard_callback, early_stopping_monitor, reduce_lr])

@@ -51,9 +51,6 @@ class DataReader:
         elif dataset.startswith('opportunity'):
             self.data, self.idToLabel = self._read_opportunity(datapath.rstrip("/"))
             self.save_data(dataset, datapath.rstrip("/") + "/")
-        elif dataset == 'pamap2':
-            self.data, self.idToLabel = self._read_pamap2(datapath.rstrip("/"))
-            self.save_data(dataset, datapath.rstrip("/") + "/")
         elif dataset.startswith('pamap2_losocv_'):
             n = int(dataset[len('pamap2_losocv_'):])
             self.data, self.idToLabel = self._read_pamap2_losocv(datapath.rstrip("/"), n)
@@ -64,6 +61,9 @@ class DataReader:
         elif dataset.startswith('pamap2_full_losocv_'):
             n = int(dataset[len('pamap2_full_losocv_'):])
             self.data, self.idToLabel = self._read_pamap2_full_losocv(datapath.rstrip("/"), n)
+            self.save_data(dataset, datapath.rstrip("/") + "/")
+        elif dataset.startswith('pamap2'):
+            self.data, self.idToLabel = self._read_pamap2(datapath.rstrip("/"))
             self.save_data(dataset, datapath.rstrip("/") + "/")
         elif dataset == 'ucihar':
             self.data, self.idToLabel = self._read_ucihar(datapath.rstrip("/"))
@@ -80,13 +80,13 @@ class DataReader:
             sys.exit(0)
 
     def save_data(self, dataset, path=""):
-        f = h5py.File(f'{path}{dataset}.h5', mode='w')
+        f = h5py.File(f'{path}{dataset}.ispl.h5', mode='w')
         for key in self.data:
             f.create_group(key)
             for field in self.data[key]:
                 f[key].create_dataset(field, data=self.data[key][field])
         f.close()
-        with open(f'{path}{dataset}.h5.classes.json', 'w') as f:
+        with open(f'{path}{dataset}.ispl.h5.classes.json', 'w') as f:
             f.write(json.dumps(self.idToLabel))
         print('Done.')
 
@@ -189,12 +189,14 @@ class DataReader:
         """ n: 1 <= n <= 8 """
         # The followings must be assinged for train.
         dat_files = [
-            'subject101.dat', 'subject102.dat', 
+            'subject101.dat', 
+            'subject102.dat', 
             'subject103.dat', # 103 does not include labels 5 to 7.
             'subject104.dat', # 104 include only one sample for label:5.
             'subject105.dat', # suitable for validation, enough # for all classes
             'subject106.dat', # suitable for validation, enough # for all classes
-            'subject107.dat', 'subject108.dat', 
+            'subject107.dat', 
+            'subject108.dat', 
             'subject109.dat' # 109 includes label:24 only
         ]
         files = {}
@@ -203,10 +205,13 @@ class DataReader:
 
         files['test'] = [dat_files[n]]
 
-        if n == 5:
-            files['validation'] = [dat_files[4]] # 106
+        if n == 0:
+            files['validation'] = [dat_files[6]] # 107
         else:
-            files['validation'] = [dat_files[5]] # 105
+            files['validation'] = [dat_files[0]] 
+            #files['validation'] = [dat_files[3], dat_files[4]]  # 70.74 ... 
+            # 102 だめ、106だめ、105だめ, 108ダメ･･･。う〜ん
+
 #
 #        if n == 7:
 #            files['validation'] = [dat_files[0]] # 106
@@ -834,13 +839,20 @@ class DataReader:
         subjects['test'] = [subject_list[n]]
 
         # sub 11, 13, 25 show low accuracy with val 30
-        # 14, 17 is show lower accuracy
-        if n == 10:
-            subjects['validation'] = [subject_list[12], subject_list[29]]
-        elif n == 29:
-            subjects['validation'] = [subject_list[10], subject_list[28]]
-        else:
-            subjects['validation'] = [subject_list[10], subject_list[29]]
+        # 10, 14, 16 show lower accuracy
+        # 28 x 
+        # 16 x
+        # 10 x
+
+        subjects['validation'] = [subject_list[14]]
+        #if n == 9:
+        #    subjects['validation'] = [subject_list[12], subject_list[13], subject_list[29]]
+        #elif n == 10:
+        #    subjects['validation'] = [subject_list[12], subject_list[9], subject_list[29]]
+        #elif n == 29:
+        #    subjects['validation'] = [subject_list[10], subject_list[9], subject_list[28]]
+        #else:
+        #    subjects['validation'] = [subject_list[10], subject_list[9], subject_list[29]]
 
         subjects['train'] = [ s for s in subject_list if s not in subjects['test'] and s not in subjects['validation'] ]
 
@@ -913,7 +925,7 @@ class DataReader:
     def split_uci_data(self, subjectlist, _data, _labels, _subjects):
 
         flags = np.in1d(_subjects, subjectlist)
-        return {'inputs': _data[flags,:,:], 'targets': _labels[flags].astype(int)}
+        return {'inputs': _data[flags], 'targets': _labels[flags].astype(int)}
 
 
     def _load_signals(self, datapath, subset, signals):
