@@ -193,7 +193,7 @@ for dataset in datasets:
             plt.title("Confusion matrix\n(normalised to % of total test data)")
             plt.ylabel('True label')
             plt.xlabel('Predicted label')
-            plt.savefig(os.path.join(img_path, f"{file_prefix}_confusion_matrix.png", bbox_inches='tight'))
+            plt.savefig(os.path.join(img_path, f"{file_prefix}_confusion_matrix.png"), bbox_inches='tight')
             plt.show()
 
             text = f"Finished working on: {model_name} at: {datetime.now()} -> {time() - start}"
