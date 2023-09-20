@@ -117,3 +117,9 @@ def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, 
                        'network_depth': 5, 'filters_number': 64, 'max_kernel_size': 68,
                        'use_residual': use_residual, 'use_bottleneck': use_bottleneck}
     return ispl_inception(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+
+
+def get_dnn_framework_name():
+    return 'tensorflow'
+
+

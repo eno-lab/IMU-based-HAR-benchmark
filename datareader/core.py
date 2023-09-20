@@ -1,13 +1,8 @@
-import csv
-import glob
-import sys
 import os
 import re
 
 import h5py
 import numpy as np
-import pandas as pd
-import simplejson as json
 
 
 class DataReader:
@@ -41,8 +36,10 @@ class DataReader:
     def read_data(self):
         raise NotImplementedError('Must be implemented')
 
+
     def is_cached(self):
         return os.path.exists(os.path.join(self.datapath, f'{self.dataset_origin}.h5'))
+
 
     def load_data(self):
         with h5py.File(os.path.join(self.datapath, f'{self.dataset_origin}.h5'), 'r') as f:
@@ -50,6 +47,7 @@ class DataReader:
             self._data['X'] = np.array(f['X'])
             self._data['y'] = np.array(f['y'])
             self._data['id'] = np.array(f['id'])
+
 
     def save_data(self):
         with h5py.File(os.path.join(self.datapath, f'{self.dataset_origin}.h5'), mode='w') as f:
@@ -66,6 +64,7 @@ class DataReader:
         ratio_re_match = re.match('{self.dataset_origin}_ratio_(\d+)_(\d+)_(\d+)', self.dataset)
         return ratio_re_match is not None
 
+
     def split_with_ratio(self):
         ratio_re_match = re.match('{self.dataset_origin}_ratio_(\d+)_(\d+)_(\d+)', self.dataset)
         r_train = float(ratio_re_match.groups()[0])
@@ -78,8 +77,8 @@ class DataReader:
         r_test /= total_ratio
 
         ix = np.arange(self._data['X'].shape[0])
-        ix_train, ix_test = train_test_split(ix, test_size = test_ratio)
-        ix_train, ix_valid= train_test_split(ix_train, test_size = valid_ratio/(train_ratio+valid_ratio))
+        ix_train, ix_test = train_test_split(ix, test_size = test_ratio, random_stateint=42)
+        ix_train, ix_valid= train_test_split(ix_train, test_size = valid_ratio/(train_ratio+valid_ratio), random_stateint=42)
 
         self._X_train = self._data['X'][ix_train]
         self._X_valid = self.data['X'][ix_valid]
@@ -93,47 +92,42 @@ class DataReader:
     def n_classes(self):
         return len(self._id_to_label) if self._id_to_label is not None else None
 
+
     @property
     def id_to_label(self):
         return self._id_to_label
+
 
     @property
     def input_shape(self):
         return (None,) + self._data['X'].shape[1:]
 
+
     @property
     def X_train(self):
         return self._X_train
+
 
     @property
     def X_valid(self):
         return self._X_valid
 
+
     @property
     def X_test(self):
         return self._X_test
+
 
     @property
     def y_train(self):
         return self._y_train
 
+
     @property
     def y_valid(self):
         return self._y_valid
 
+
     @property
     def y_test(self):
         return self._y_test
-
-    @property
-    def train(self):
-        return self._train
-
-    @property
-    def valid(self):
-        return self._validation
-
-    @property
-    def test(self):
-        return self._test
-

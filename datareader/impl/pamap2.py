@@ -1,14 +1,9 @@
-import csv
 import os
 
-import h5py
 import numpy as np
 import pandas as pd
-import simplejson as json
-from tensorflow.keras.utils import to_categorical
-import tensorflow as tf
 from ..core import DataReader
-from ..utils import interp_nans
+from ..utils import interp_nans, to_categorical
 
 class Pamap2(DataReader):
     def __init__(self, dataset):
@@ -170,11 +165,6 @@ class Pamap2(DataReader):
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
 
-
-        self._train = tf.data.Dataset.from_tensor_slices((self._X_train, self._y_train))
-        self._validation = tf.data.Dataset.from_tensor_slices((self._X_valid, self._y_valid))
-        self._test = tf.data.Dataset.from_tensor_slices((self._X_test, self._y_test))
-
     def read_data(self):
         data = []
         seg = []
@@ -190,7 +180,6 @@ class Pamap2(DataReader):
 
             df = df.iloc[:, 1:].astype(float)
             df.interpolate(inplace=True, limit=20) # 20/100 = 0.2Hz
-            #df /= 1000
 
             for ix, cur_label in enumerate(label_df):
                 #nan_c = 0

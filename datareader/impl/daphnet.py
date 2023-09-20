@@ -1,28 +1,24 @@
 import csv
 import os
 
-import h5py
 import numpy as np
-import pandas as pd
-import simplejson as json
-from tensorflow.keras.utils import to_categorical
-import tensorflow as tf
 from ..core import DataReader
+from ..utils import to_categorical
 
 
 class Daphnet(DataReader):
     def __init__(self, dataset):
-        self._label_map = {
+        self._label_map = (
             # (0, 'Other')
-            '1': 'No freeze',
-            '2': 'Freeze'
-        }
+            (1, 'No freeze'),
+            (2, 'Freeze')
+        )
 
         self._subjects = [
                 ['S01R01.txt', 'S01R02.txt'],
                 ['S02R01.txt'],
                 ['S02R02.txt'], # it splited to implement ispl benchmark configuration
-                ['S03R01.txt', 'S03R02.txt']
+                ['S03R01.txt', 'S03R02.txt'],
                 ['S03R03.txt'], # R03 includes label:1 only. # it splited to implement ispl benchmark configuration
                 ['S04R01.txt'], # 1 only
                 ['S05R01.txt'], 
@@ -30,7 +26,7 @@ class Daphnet(DataReader):
                 ['S06R01.txt', 'S06R02.txt'], # R02 includes label:1 only.
                 ['S07R01.txt', 'S07R02.txt'],
                 ['S08R01.txt'],
-                ['S09R01.txt']
+                ['S09R01.txt'],
                 ['S10R01.txt']  # 1 only
         ]
         self._cols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -59,7 +55,7 @@ class Daphnet(DataReader):
                 [3, 4],
                 [5],
                 [6, 7],
-                [8],[9],[10],[11],12]]
+                [8],[9],[10],[11],[12]]
 
         subjects = {}
         subjects['test'] = []
@@ -89,8 +85,8 @@ class Daphnet(DataReader):
                 'test': [1, 5, 7]
             }
 
-        label_to_id = {x[0]: i for i, x in enumerate(label_map)}
-        self._id_to_label = [x[1] for x in label_map]
+        label_to_id = {x[0]: i for i, x in enumerate(self._label_map)}
+        self._id_to_label = [x[1] for x in self._label_map]
 
         _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
         _x = self._data['X'][_filter]
@@ -109,10 +105,6 @@ class Daphnet(DataReader):
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
 
-        self._train = tf.data.Dataset.from_tensor_slices((self._X_train, self._y_train))
-        self._validation = tf.data.Dataset.from_tensor_slices((self._X_valid, self._y_valid))
-        self._test = tf.data.Dataset.from_tensor_slices((self._X_test, self._y_test))
-
     def read_data(self):
         data = []
         seg = []
@@ -120,6 +112,7 @@ class Daphnet(DataReader):
         labels = []
         label = None
 
+        # TODO update
         for i, filelist in enumerate(self._subjects):
             for filename in filelist:
                 with open(os.path.join(self.datapath, 'dataset', filename), 'r') as f:

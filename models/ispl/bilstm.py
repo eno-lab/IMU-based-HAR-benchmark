@@ -43,3 +43,10 @@ def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, 
                        'depth': 1,
                        'merge_mode': 'concat'}
     return bilstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+
+
+def get_dnn_framework_name():
+    return 'tensorflow'
+
+
+

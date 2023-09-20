@@ -1,6 +1,7 @@
 import importlib 
 import numpy as np
 
+
 def gen_datareader(dataset):
     """
     dataset: 'daphnet', 
@@ -26,3 +27,8 @@ def interp_nans(y):
         y[nans] = np.interp(x(nans), x(~nans), y[~nans])
     return y
 
+
+def to_categorical(y, class_num=None):
+    if class_num is None:
+        class_num = max(y)+1
+    return np.eye(class_num, dtype=np.float32)[y]

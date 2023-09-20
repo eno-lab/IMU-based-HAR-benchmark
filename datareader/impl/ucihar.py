@@ -1,12 +1,9 @@
 import os
 
-import h5py
 import numpy as np
 import pandas as pd
-import simplejson as json
-from tensorflow.keras.utils import to_categorical
-import tensorflow as tf
 from ..core import DataReader
+from ..utils import to_categorical
 
 
 class Ucihar(DataReader):
@@ -25,6 +22,8 @@ class Ucihar(DataReader):
 
         if self.is_ratio():
             self.split_with_ratio()
+        elif dataset.startswith('ucihar_orig'):
+            self._split_ucihar_orig()
         elif dataset.startswith('ucihar_losocv_'):
             n = int(dataset[len('ucihar_losocv_'):])
             self._split_ucihar_losocv(n)
@@ -54,11 +53,30 @@ class Ucihar(DataReader):
 
         subjects['train'] = [ s for s in subject_list if s not in subjects['test'] and s not in subjects['validation'] ]
 
-        return self._split_ucihar(subjects = subjects)
+        self._split_ucihar(subjects = subjects)
 
+
+    def _split_ucihar_orig(self):
+        """ Original split of ucihar """
+        subjects = {
+            # Original train set = 70% of all subjects
+            'train': [
+                1, 3, 5, 6, 8, 11, 14, 15, 16, 17, 19,
+                21, 23, 25, 26, 27, 28, 29, 30
+            ],
+            # 1/3 of test set = 10% of all subjects
+            'validation': [
+                22, 7
+            ],
+            # 2/3 of original test set = 20% of all subjects
+            'test': [
+                2, 4, 9, 10, 12, 13, 18, 20, 24,
+            ]
+        }
+        self._split_ucihar(subjects = subjects)
 
     # This data is already windowed and segmented
-    def _split_ucihar(self, label_map=None, subjects=None):
+    def _split_ucihar(self, subjects=None):
         if subjects is None:
             subjects = {
                 # Original train set = 70% of all subjects
@@ -85,10 +103,6 @@ class Ucihar(DataReader):
         self._X_train, self._y_train = split_uci_data(subjects['train'])
         self._X_valid, self._y_valid = split_uci_data(subjects['validation'])
         self._X_test, self._y_test= split_uci_data(subjects['test'])
-
-        self._train = tf.data.Dataset.from_tensor_slices((self._X_train, self._y_train))
-        self._validation = tf.data.Dataset.from_tensor_slices((self._X_valid, self._y_valid))
-        self._test = tf.data.Dataset.from_tensor_slices((self._X_test, self._y_test))
 
 
     def read_data(self):

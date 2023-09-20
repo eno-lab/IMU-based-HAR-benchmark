@@ -6,7 +6,7 @@ from ..core import DataReader
 from ..utils import interp_nans, to_categorical
 
 
-class Opportunity(DataReader):
+class Opportunityreal(DataReader):
     def __init__(self, dataset):
         # names are from label_legend.txt of Opportunity dataset
         # except 0-ie Other, which is an additional label
@@ -131,42 +131,41 @@ class Opportunity(DataReader):
             print(f'Reading file, {filename}: {i+1} of {len(self._filelist)}')
 
             df = pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None)
+            print(df.shape)
+            print(df.head())
+            
             df = df.iloc[:,self._cols]
-
+            print(df.head())
             label_df = df.iloc[:, -1].astype(int)
 
             df = df.iloc[:, :-1].astype(float)
             df.interpolate(inplace=True, limit=6) # 6/30 = 0.2 Hz
             df /= 1000
 
-            for ix, cur_label in enumerate(label_df):
-                #nan_c = 0
-                if cur_label == 0:
-                    label = None
-                    seg = []
+            for low in range(0, len(label_df), int(self._win_size//2)):
+                high = low + self._win_size
+                if high > df.shape[0]:
+                    break
+
+                seg_labels = label_df[low:high]
+                seg_labels = seg_labels[seg_labels != 0]
+                if len(seg_labels) == 0:
                     continue
 
-                if label is not None:
-                    if label != cur_label: # change label
-                        seg = []
-                        label = cur_label
-                else:
-                    label = cur_label
+                label = seg_labels.mode().iloc[0]
+                if len(seg_labels) < self._win_sizewin_size//2:
+                    #print(f"Warning: skip a segment whose overhalf of labels are 0. ({low}:{high}, label={label})")
+                    continue
 
-                seg.append(ix)
+                #print(f"{len(seg_labels)=}:{label}")
+                seg = df.iloc[low:high,:]
+                if seg.isna().any(axis=None):
+                    print(f"Warning: skip a segment include NaN. ({low}:{high}, label={label})")
+                    continue
 
-                if len(seg) == self._win_size:
-                    _sdf = df.iloc[seg,:]
-                    if _sdf.isna().any(axis=None):
-                        print(f"Warning: skip a segment include NaN. ({min(seg)}:{max(seg)+1}, label={label})")
-                        continue
-
-                    # accepted 
-                    data.append(_sdf)
-                    labels.append(label)
-                    file_ids.append(i)
-
-                    seg = seg[int(len(seg)//2):] # stride = win_size/2
+                data.append(seg)
+                labels.append(label)
+                file_ids.append(i)
                 
         self._data = {}
         self._data['X'] = np.asarray(data)

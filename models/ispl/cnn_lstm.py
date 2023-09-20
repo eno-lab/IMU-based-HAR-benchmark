@@ -54,7 +54,7 @@ def cnn_lstm(x_shape,
 
 def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy']):
 
-    # imported from rTsfNet
+    # imported from tsf 
     n_steps = -1
     for n in [4, 3, 5, 2]:
         if input_shape[1] % n == 0:
@@ -72,3 +72,9 @@ def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, 
                        'regularization_rate': 0.000093}
 
     return cnn_lstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+
+
+def get_dnn_framework_name():
+    return 'tensorflow'
+
+

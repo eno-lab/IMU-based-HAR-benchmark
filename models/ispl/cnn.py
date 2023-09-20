@@ -53,3 +53,9 @@ def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, 
     hyperparameters = {'filters': [32, 64, 32], 'fc_hidden_nodes': 100, 'learning_rate': 0.0005,
                        'regularization_rate': 0.000093}
     return cnn(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+
+
+def get_dnn_framework_name():
+    return 'tensorflow'
+
+

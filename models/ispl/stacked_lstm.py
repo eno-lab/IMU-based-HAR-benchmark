@@ -45,3 +45,9 @@ def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, 
     hyperparameters = {'n_hidden': 128, 'learning_rate': 0.0005, 'regularization_rate': 0.000093,
                        'depth': 4}
     return stacked_lstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+
+
+def get_dnn_framework_name():
+    return 'tensorflow'
+
+
