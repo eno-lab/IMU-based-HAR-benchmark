@@ -1,4 +1,4 @@
-dataset
+dataset/
 dataset/daphnet
 dataset/daphnet/dataset
 dataset/daphnet/dataset/S08R01.txt
@@ -25,6 +25,12 @@ dataset/daphnet/doc/img
 dataset/daphnet/doc/img/annotation.jpg
 dataset/daphnet/doc/img/device.jpg
 dataset/daphnet/doc/img/sketchOfPaths_landscape.png
+dataset/WISDM_ar_v1.1
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_transformed.arff
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_trans_about.txt
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_raw.txt
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_raw_about.txt
+dataset/WISDM_ar_v1.1/readme.txt
 dataset/ispl
 dataset/ispl/labels.txt
 dataset/ispl/raw

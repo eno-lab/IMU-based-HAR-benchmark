@@ -5,18 +5,32 @@ import numpy as np
 def gen_datareader(dataset):
     """
     dataset: 'daphnet', 
-             'daphnet_losocv_i', where 1 <= i <= 10
-             'pamap2', 
-             'pamap2_full', 
-             'pamap2_losocv_i', where 1 <= i <= 8
-             'pamap2_full_losocv_i', where 1 <= i <= 9
+             'daphnet-losocv_i', where 1 <= i <= 10
+             'wisdm', 
+             'wisdm-losocv_i', where 1 <= i <= 36
+             'pamap2',       # exclude 24: rope jumping 
+             'pamap2-full',  # include 24: rope jumping
+             'pamap2-losocv_i', where 1 <= i <= 8
+             'pamap2-full-losocv_i', where 1 <= i <= 9
              'opportunity, 
+             'opportunity-real, # include Null and split ignoring label boundary 
              'ucihar', 
-             'ucihar_losocv_i', where 1 <= i <=  30
-             'ispl'
+             'ucihar-losocv_i', where 1 <= i <=  30
+             'ucihar-orig', 
+             # 'ispl' # not implemented 
     """
-    dataset_origin = dataset.split('_')[0].lower()
-    cls_name = dataset_origin[0].upper() + dataset_origin[1:]
+    dataset_origin = dataset.split('-')[0].lower()
+    parts = []
+
+    for p in dataset_origin.split('_'):
+        if len(p) == 0:
+            continue
+        elif len(p) == 1:
+            parts.append(p.upper())
+        else: 
+            parts.append(p[0].upper() + p[1:])
+    
+    cls_name = ''.join(parts)
     mod = importlib.import_module(f'.impl.{dataset_origin}', "datareader")
     return eval(f'mod.{cls_name}(dataset)')
 

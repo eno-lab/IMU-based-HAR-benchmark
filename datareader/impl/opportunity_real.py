@@ -6,7 +6,7 @@ from ..core import DataReader
 from ..utils import interp_nans, to_categorical
 
 
-class Opportunityreal(DataReader):
+class OpportunityReal(DataReader):
     def __init__(self, dataset):
         # names are from label_legend.txt of Opportunity dataset
         # except 0-ie Other, which is an additional label
@@ -57,14 +57,44 @@ class Opportunityreal(DataReader):
 
         self._cols = [x-1 for x in self._cols]
 
-        super().__init__(dataset, 'opportunity', 30) # 1 sec, 30Hz, cut off 2% of samples 
+        super().__init__(dataset, 'opportunity_real', 30, os.path.join('dataset', 'opportunity')) # 1 sec, 30Hz, cut off 2% of samples 
 
         if self.is_ratio():
             self.split_with_ratio()
-        elif dataset == 'opportunity':
+        elif dataset == 'opportunity_real-task_b2':
+            self._split_opportunity_task_b2()
+        elif dataset == 'opportunity_real-task_c':
+            self._split_opportunity_task_c()
+        elif dataset == 'opportunity_real':
             self._split_opportunity()
         else:
             raise ValueError(f'invalid dataset name: {dataset}')
+
+
+    def _split_opportunity_task_b2(self):
+        files = {
+            'train': [ 0,  1 , 2,  3,  4, 
+                       6,      8,         11,
+                      12, 13,             17,
+                      18, 19, 20,         23],
+            'validation': [5, 7, 14],
+            'test':  [9, 10, 15, 16]
+        }
+
+        self._split_opportunity(files)
+
+
+    def _split_opportunity_task_c(self):
+        files = {
+            'train': [ 0,  1,  2,  3,  4, 
+                       6,      8,         11,
+                      12, 13,             17,
+                      18, 19,             23],
+            'validation': [5, 7, 14, 20],
+            'test':  [21, 22]
+        }
+
+        self._split_opportunity(files)
 
 
     def _split_opportunity(self, files = None, label_map = None):
@@ -80,7 +110,7 @@ class Opportunityreal(DataReader):
         # names are from label_legend.txt of Opportunity dataset
         # except 0-ie Other, which is an additional label
         label_map = [
-            # (0, 'Other'),
+            (0, 'Other'),
             (406516, 'Open Door 1'),
             (406517, 'Open Door 2'),
             (404516, 'Close Door 1'),
@@ -104,11 +134,9 @@ class Opportunityreal(DataReader):
         self._id_to_label = [x[1] for x in label_map]
 
         _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
-        print(self._data['X'].shape)
         _x = self._data['X'][_filter]
-        print(_x.shape)
         _id = self._data['id'][_filter]
-        _y = [[label_to_id[y]] for y in self._data['y'][_filter]]
+        _y = [label_to_id[y] for y in self._data['y'][_filter]]
         _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
 
         _f_train = np.in1d(_id, files['train'])
@@ -131,11 +159,8 @@ class Opportunityreal(DataReader):
             print(f'Reading file, {filename}: {i+1} of {len(self._filelist)}')
 
             df = pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None)
-            print(df.shape)
-            print(df.head())
             
             df = df.iloc[:,self._cols]
-            print(df.head())
             label_df = df.iloc[:, -1].astype(int)
 
             df = df.iloc[:, :-1].astype(float)
@@ -148,15 +173,15 @@ class Opportunityreal(DataReader):
                     break
 
                 seg_labels = label_df[low:high]
-                seg_labels = seg_labels[seg_labels != 0]
-                if len(seg_labels) == 0:
-                    continue
+                #seg_labels = seg_labels[seg_labels != 0]
+                #if len(seg_labels) == 0:
+                #    continue
+
+                #if len(seg_labels) < self._win_sizewin_size//2:
+                #    #print(f"Warning: skip a segment whose overhalf of labels are 0. ({low}:{high}, label={label})")
+                #    continue
 
                 label = seg_labels.mode().iloc[0]
-                if len(seg_labels) < self._win_sizewin_size//2:
-                    #print(f"Warning: skip a segment whose overhalf of labels are 0. ({low}:{high}, label={label})")
-                    continue
-
                 #print(f"{len(seg_labels)=}:{label}")
                 seg = df.iloc[low:high,:]
                 if seg.isna().any(axis=None):

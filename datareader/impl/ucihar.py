@@ -22,12 +22,12 @@ class Ucihar(DataReader):
 
         if self.is_ratio():
             self.split_with_ratio()
-        elif dataset.startswith('ucihar_orig'):
+        elif dataset in [ 'ucihar-orig', 'ucihar']:
             self._split_ucihar_orig()
-        elif dataset.startswith('ucihar_losocv_'):
-            n = int(dataset[len('ucihar_losocv_'):])
+        elif dataset.startswith('ucihar-losocv_'):
+            n = int(dataset[len('ucihar-losocv_'):])
             self._split_ucihar_losocv(n)
-        elif dataset == 'ucihar':
+        elif dataset == 'ucihar-ispl':
             self._split_ucihar()
         else:
             raise ValueError(f'invalid dataset name: {dataset}')
@@ -78,6 +78,7 @@ class Ucihar(DataReader):
     # This data is already windowed and segmented
     def _split_ucihar(self, subjects=None):
         if subjects is None:
+            # ispl based split
             subjects = {
                 # Original train set = 70% of all subjects
                 'train': [

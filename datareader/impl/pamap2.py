@@ -30,13 +30,13 @@ class Pamap2(DataReader):
 
         if self.is_ratio():
             self.split_with_ratio()
-        elif dataset.startswith('pamap2_full_losocv_'):
-            n = int(dataset[len('pamap2_full_losocv_'):])
+        elif dataset.startswith('pamap2-full-losocv_'):
+            n = int(dataset[len('pamap2-full-losocv_'):])
             self._split_pamap2_full_losocv(n)
-        elif dataset == 'pamap2_full':
+        elif dataset == 'pamap2-full':
             self._split_pamap2_full()
-        elif dataset.startswith('pamap2_losocv_'):
-            n = int(dataset[len('pamap2_losocv_'):])
+        elif dataset.startswith('pamap2-losocv_'):
+            n = int(dataset[len('pamap2-losocv_'):])
             self._split_pamap2_losocv(n)
         elif dataset == 'pamap2':
             self._split_pamap2()
@@ -166,51 +166,8 @@ class Pamap2(DataReader):
         self._y_test = _y[_f_test]
 
     def read_data(self):
-        data = []
-        seg = []
-        subject_ids = []
-        labels = []
-        label = None
-        for i, filename in enumerate(self._filelist):
-            print('Reading file %d of %d' % (i + 1, len(self._filelist)))
-
-            df = pd.read_csv(os.path.join(self.datapath, 'Protocol', filename), sep=" ", header=None)
-            df = df.iloc[:,self._cols]
-            label_df = df.iloc[:, 0].astype(int)
-
-            df = df.iloc[:, 1:].astype(float)
-            df.interpolate(inplace=True, limit=20) # 20/100 = 0.2Hz
-
-            for ix, cur_label in enumerate(label_df):
-                #nan_c = 0
-                if cur_label == 0:
-                    label = None
-                    seg = []
-                    continue
-
-                if label is not None:
-                    if label != cur_label: # change label
-                        seg = []
-                        label = cur_label
-                else:
-                    label = cur_label
-
-                seg.append(ix)
-
-                if len(seg) == self._win_size:
-                    _sdf = df.iloc[seg,:]
-                    if _sdf.isna().any(axis=None):
-                        print(f"Warning: skip a segment include NaN. ({min(seg)}:{max(seg)+1}, label={label})")
-                        continue
-
-                    # accepted 
-                    data.append(_sdf)
-                    labels.append(label)
-                    subject_ids.append(i)
-
-                    seg = seg[int(len(seg)//2):] # stride = win_size/2
-
-        self._data = {}
-        self._data['X'] = np.asarray(data)
-        self._data['y'] = np.asarray(labels, dtype=int)
-        self._data['id'] = np.asarray(subject_ids)
+        self.read_data(enumerate(self._filelist),
+                       lambda filename: pd.read_csv(os.path.join(self.datapath, 'Protocol', filename), sep=" ", header=None),
+                       label_col = -1,
+                       interpolate_limit = 20 # 20/100 Hz = 0.2 Hz
+                       )

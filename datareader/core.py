@@ -6,10 +6,14 @@ import numpy as np
 
 
 class DataReader:
-    def __init__(self, dataset, dataset_origin, win_size):
+    def __init__(self, dataset, dataset_origin, win_size, dataset_path=None):
         self.dataset = dataset
         self.dataset_origin = dataset_origin
-        self.datapath = os.path.join('dataset', dataset_origin)
+        if dataset_path is None:
+            self.datapath = os.path.join('dataset', dataset_origin) 
+        else:
+            self.datapath = dataset_path
+
         self._id_to_label = None
         self._X_train = None
         self._y_train = None
@@ -87,6 +91,71 @@ class DataReader:
         self._y_valid = self.data['y'][ix_valid]
         self._y_test = self.data['y'][ix_test]
 
+
+    def read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10):
+        """
+
+        Args:
+            loop_elements: used as 'for id, filename in loop_elements'
+            read_file_func: 
+                args: filename
+                return: pandas.DataFrame
+            label_col: -1 or 1, default -1
+        """ 
+        data = []
+        seg = []
+        subject_ids = []
+        labels = []
+        label = None
+
+        for i, filename in loop_elements:
+            for filename in filelist:
+                df = read_file_func(filename)
+                df = df.iloc[:,self._cols]
+                label_df = df.iloc[:, -1].astype(int)
+
+                if label_col == -1:
+                    df = df.iloc[:, :-1].astype(float)
+                elif label_col == 0:
+                    df = df.iloc[:, 1::].astype(float)
+
+                
+                df.interpolate(inplace=True, limit=interpolate_limit) # 13/64 hz = 0.2Hz
+                if x_magnif != 1:
+                    df *= x_magnif
+
+                for ix, cur_label in enumerate(label_df):
+                    if cur_label == 0:
+                        label = None
+                        seg = []
+                        continue
+
+                    if label is not None:
+                        if label != cur_label: # change label
+                            seg = []
+                            label = cur_label
+                    else:
+                        label = cur_label
+
+                    seg.append(ix)
+
+                    if len(seg) == self._win_size:
+                        _sdf = df.iloc[seg,:]
+                        if _sdf.isna().any(axis=None):
+                            print(f"Warning: skip a segment include NaN. ({min(seg)}:{max(seg)+1}, label={label})")
+                            continue
+
+                        # accepted 
+                        data.append(_sdf)
+                        labels.append(label)
+                        subject_ids.append(i)
+
+                        seg = seg[int(len(seg)//2):] # stride = win_size/2
+
+        self._data = {}
+        self._data['X'] = np.asarray(data)
+        self._data['y'] = np.asarray(labels, dtype=int)
+        self._data['id'] = np.asarray(subject_ids)
 
     @property
     def n_classes(self):

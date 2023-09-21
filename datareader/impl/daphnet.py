@@ -36,8 +36,8 @@ class Daphnet(DataReader):
 
         if self.is_ratio():
             self.split_with_ratio()
-        elif dataset.startswith('daphnet_losocv_'):
-            n = int(dataset[len('daphnet_losocv_'):])
+        elif dataset.startswith('daphnet-losocv_'):
+            n = int(dataset[len('daphnet-losocv_'):])
             self._split_daphnet_losocv(n)
         elif dataset == 'daphnet':
             self._split_daphnet()
@@ -106,45 +106,17 @@ class Daphnet(DataReader):
         self._y_test = _y[_f_test]
 
     def read_data(self):
-        data = []
-        seg = []
-        subject_ids = []
-        labels = []
-        label = None
-
-        # TODO update
+        ixs = []
+        filenames = []
         for i, filelist in enumerate(self._subjects):
             for filename in filelist:
-                with open(os.path.join(self.datapath, 'dataset', filename), 'r') as f:
-                    reader = csv.reader(f, delimiter=' ')
-                    for line in reader:
-                        if line[10] == '0':
-                            label = None
-                            seg = []
-                            continue
-                        
-                        if label is not None:
-                            if label != line[10]: # change label
-                                seg = []
-                                label = line[10]
-                        else:
-                            label = line[10]
+                ixs.append(i)
+                filenames.append(filename)
 
-                        elem = [line[ix] for ix in self._cols]
-                        if sum([x == 'NaN' for x in elem]) == 0:
-                            seg.append([float(x) / 1000 for x in elem[:-1]])
-                            if len(seg) == self._win_size:
-                                # accepted 
-                                data.append(seg)
-                                labels.append(int(label))
-                                subject_ids.append(i)
-
-                                seg = seg[int(len(seg)//2):] # stride = win_size/2
-                        else:
-                            label = None # reset
-                            seg = [] 
-
-        self._data = {}
-        self._data['X'] = np.asarray(data)
-        self._data['y'] = np.asarray(labels, dtype=int)
-        self._data['id'] = np.asarray(subject_ids)
+        self.read_data(
+                zip(ixs, filenames), 
+                lambda filename: pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None)
+                label_col = -1,
+                x_magnif = 0.001,
+                interpolate_limit = 13 # 13/64 is almost 0.2 hz
+                )
