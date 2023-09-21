@@ -55,7 +55,7 @@ training_id = f'{time()*1000:.0f}'
 
 for dataset in datasets:
 
-    dataset_origin = dataset.split('_')[0]
+    dataset_origin = dataset.split('-')[0]
     file_prefix = f"{training_id}_{model_name}_{dataset}"
 
     if args.ispl_datareader:
@@ -176,7 +176,15 @@ for dataset in datasets:
                 print(model_type)
                 print('###############################################################################')
                 model = eval(model_type)
-                scores = model.evaluate(X_test, y_test, verbose=1)
+
+                if framework_name == 'tensorflow':
+                    # Results for each model
+                    scores = model.evaluate(X_test, y_test, verbose=1)
+                    predictions = model.predict(X_test).argmax(1)
+                elif framework_name == 'pytoroch':
+                    raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                else:
+                    raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
 
                 report.write('###############################################################################')
@@ -187,10 +195,6 @@ for dataset in datasets:
                 report.write(f"Test Accuracy: {scores[1] * 100}\n")
                 report.write(f"Test Loss: {scores[0]}\n")
                 report.write('\n\n\n')
-
-
-                # Results for each model
-                predictions = model.predict(X_test).argmax(1)
 
                 classificationReport = classification_report(y_test.argmax(1), predictions,
                                                              labels=np.arange(n_classes), 
