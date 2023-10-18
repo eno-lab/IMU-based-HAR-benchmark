@@ -60,6 +60,18 @@ Available Datasets specifications are
 - ['ucihar-ispl']			      # iSPL based split
 ```
 
+## Links for the datasets
+- [Daphnet](https://doi.org/10.24432/C56K78)
+- [WISDM](https://www.cis.fordham.edu/wisdm/dataset.php)
+- [PAMAP2](https://doi.org/10.24432/C5NW2H)
+- [OPPORTUNITY](https://doi.org/10.24432/C5M027)
+- [UCIHAR](https://doi.org/10.24432/C54S4K)
+
+## How to locate the downloaded files
+
+Please see [dataset\_file\_list.txt](dataset_file_list.txt).
+
+
 # Directories
 ```
 - logs             # logs for TensorBoard are stored.
