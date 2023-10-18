@@ -1,0 +1,148 @@
+dataset/
+dataset/daphnet
+dataset/daphnet/dataset
+dataset/daphnet/dataset/S08R01.txt
+dataset/daphnet/dataset/S03R02.txt
+dataset/daphnet/dataset/S07R01.txt
+dataset/daphnet/dataset/S03R01.txt
+dataset/daphnet/dataset/S07R02.txt
+dataset/daphnet/dataset/S04R01.txt
+dataset/daphnet/dataset/S10R01.txt
+dataset/daphnet/dataset/S01R01.txt
+dataset/daphnet/dataset/S05R02.txt
+dataset/daphnet/dataset/S05R01.txt
+dataset/daphnet/dataset/S02R02.txt
+dataset/daphnet/dataset/S01R02.txt
+dataset/daphnet/dataset/S02R01.txt
+dataset/daphnet/dataset/S06R02.txt
+dataset/daphnet/dataset/S06R01.txt
+dataset/daphnet/dataset/S03R03.txt
+dataset/daphnet/dataset/S09R01.txt
+dataset/daphnet/README
+dataset/daphnet/doc
+dataset/daphnet/doc/baechlin_TITB_2010 - Wearable Assistant for Parkinsons Disease Patients With the Freezing of Gait Symptom (preprint).pdf
+dataset/daphnet/doc/img
+dataset/daphnet/doc/img/annotation.jpg
+dataset/daphnet/doc/img/device.jpg
+dataset/daphnet/doc/img/sketchOfPaths_landscape.png
+dataset/WISDM_ar_v1.1
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_transformed.arff
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_trans_about.txt
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_raw.txt
+dataset/WISDM_ar_v1.1/WISDM_ar_v1.1_raw_about.txt
+dataset/WISDM_ar_v1.1/readme.txt
+dataset/ispl
+dataset/ispl/labels.txt
+dataset/ispl/raw
+dataset/ispl/raw/Ronald_ST_SI_raw_data_2020-11-05_18_44_27_sensor1.txt
+dataset/ispl/raw/Jung_WA_ST_raw_data_2020-11-05_16_43_52_sensor1.txt
+dataset/ispl/raw/Alwin_raw_data_2020-11-05_17_27_26_sensor1.txt
+dataset/ispl/raw/Suh_raw_data_2020-11-05_16_14_5_sensor1.txt
+dataset/ispl/raw/Jung_raw_data_2020-11-05_16_57_44_sensor1.txt
+dataset/ispl/raw/Ronald_WA_raw_data_2020-11-05_17_58_5_sensor1.txt
+dataset/ispl/dataset.txt
+dataset/ucihar
+dataset/ucihar/README.txt
+dataset/ucihar/features_info.txt
+dataset/ucihar/train
+dataset/ucihar/train/Inertial Signals
+dataset/ucihar/train/Inertial Signals/total_acc_z_train.txt
+dataset/ucihar/train/Inertial Signals/body_acc_x_train.txt
+dataset/ucihar/train/Inertial Signals/body_acc_y_train.txt
+dataset/ucihar/train/Inertial Signals/total_acc_y_train.txt
+dataset/ucihar/train/Inertial Signals/body_gyro_z_train.txt
+dataset/ucihar/train/Inertial Signals/total_acc_x_train.txt
+dataset/ucihar/train/Inertial Signals/body_acc_z_train.txt
+dataset/ucihar/train/Inertial Signals/body_gyro_y_train.txt
+dataset/ucihar/train/Inertial Signals/body_gyro_x_train.txt
+dataset/ucihar/train/subject_train.txt
+dataset/ucihar/train/X_train.txt
+dataset/ucihar/train/y_train.txt
+dataset/ucihar/test
+dataset/ucihar/test/Inertial Signals
+dataset/ucihar/test/Inertial Signals/body_acc_z_test.txt
+dataset/ucihar/test/Inertial Signals/total_acc_y_test.txt
+dataset/ucihar/test/Inertial Signals/total_acc_z_test.txt
+dataset/ucihar/test/Inertial Signals/total_acc_x_test.txt
+dataset/ucihar/test/Inertial Signals/body_acc_y_test.txt
+dataset/ucihar/test/Inertial Signals/body_gyro_z_test.txt
+dataset/ucihar/test/Inertial Signals/body_gyro_y_test.txt
+dataset/ucihar/test/Inertial Signals/body_gyro_x_test.txt
+dataset/ucihar/test/Inertial Signals/body_acc_x_test.txt
+dataset/ucihar/test/y_test.txt
+dataset/ucihar/test/X_test.txt
+dataset/ucihar/test/subject_test.txt
+dataset/ucihar/activity_labels.txt
+dataset/ucihar/features.txt
+dataset/opportunity
+dataset/opportunity/dataset
+dataset/opportunity/dataset/S4-Drill.dat
+dataset/opportunity/dataset/S1-Drill.dat
+dataset/opportunity/dataset/S2-ADL4.dat
+dataset/opportunity/dataset/S2-Drill.dat
+dataset/opportunity/dataset/S3-ADL5.dat
+dataset/opportunity/dataset/S1-ADL3.dat
+dataset/opportunity/dataset/S1-ADL4.dat
+dataset/opportunity/dataset/S4-ADL1.dat
+dataset/opportunity/dataset/label_legend.txt
+dataset/opportunity/dataset/S4-ADL2.dat
+dataset/opportunity/dataset/S1-ADL1.dat
+dataset/opportunity/dataset/S4-ADL4.dat
+dataset/opportunity/dataset/S2-ADL5.dat
+dataset/opportunity/dataset/S2-ADL1.dat
+dataset/opportunity/dataset/S4-ADL5.dat
+dataset/opportunity/dataset/S3-ADL1.dat
+dataset/opportunity/dataset/S3-ADL4.dat
+dataset/opportunity/dataset/S3-Drill.dat
+dataset/opportunity/dataset/S2-ADL2.dat
+dataset/opportunity/dataset/S4-ADL3.dat
+dataset/opportunity/dataset/S3-ADL3.dat
+dataset/opportunity/dataset/column_names.txt
+dataset/opportunity/dataset/S2-ADL3.dat
+dataset/opportunity/dataset/S3-ADL2.dat
+dataset/opportunity/dataset/S1-ADL2.dat
+dataset/opportunity/dataset/S1-ADL5.dat
+dataset/opportunity/doc
+dataset/opportunity/doc/OPPORTUNITY_D5.1.pdf
+dataset/opportunity/doc/Chavarriaga - The Opportunity challenge-A benchmark database for on-body sensor-based activity recognition (PRL, 2013).pdf
+dataset/opportunity/doc/ActivityRecognitionBaselines.pdf
+dataset/opportunity/doc/Roggen - Collecting complex activity datasets in highly rich networked sensor environments (INSS, 2010).pdf
+dataset/opportunity/doc/img
+dataset/opportunity/doc/img/Fig1Cr.png
+dataset/opportunity/doc/img/arena3.png
+dataset/opportunity/doc/img/motion_jacket_complete.jpg
+dataset/opportunity/doc/img/logos-opportunity-final_50p_challenge.png
+dataset/opportunity/doc/img/Fig1Cl.png
+dataset/opportunity/doc/img/usb_sensor.jpg
+dataset/opportunity/doc/img/bt_obj1.jpg
+dataset/opportunity/doc/img/label.png
+dataset/opportunity/doc/img/Reed_Switch_Configuration.png
+dataset/opportunity/doc/img/objects.JPG
+dataset/opportunity/doc/img/reed.jpg
+dataset/opportunity/doc/img/logos-opportunity-final_50p.png
+dataset/opportunity/doc/dataset_statistics.pdf
+dataset/opportunity/README.md
+dataset/pamap2
+dataset/pamap2/Protocol
+dataset/pamap2/Protocol/subject103.dat
+dataset/pamap2/Protocol/subject104.dat
+dataset/pamap2/Protocol/subject105.dat
+dataset/pamap2/Protocol/subject107.dat
+dataset/pamap2/Protocol/subject109.dat
+dataset/pamap2/Protocol/subject102.dat
+dataset/pamap2/Protocol/subject106.dat
+dataset/pamap2/Protocol/subject108.dat
+dataset/pamap2/Protocol/subject101.dat
+dataset/pamap2/DescriptionOfActivities.pdf
+dataset/pamap2/subjectInformation.pdf
+dataset/pamap2/readme.pdf
+dataset/pamap2/Pamap Dataset Information.docx
+dataset/pamap2/DataCollectionProtocol.pdf
+dataset/pamap2/readme.md
+dataset/pamap2/Optional
+dataset/pamap2/Optional/subject105.dat
+dataset/pamap2/Optional/subject109.dat
+dataset/pamap2/Optional/subject106.dat
+dataset/pamap2/Optional/subject108.dat
+dataset/pamap2/Optional/subject101.dat
+dataset/pamap2/PerformedActivitiesSummary.pdf
