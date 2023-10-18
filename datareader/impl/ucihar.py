@@ -3,14 +3,13 @@ import os
 import numpy as np
 import pandas as pd
 from ..core import DataReader
-from ..utils import to_categorical
 
 
 class Ucihar(DataReader):
     def __init__(self, dataset):
         super().__init__(dataset, 'ucihar', 128)
 
-        label_map = [
+        self._label_map = [
             (1, 'Walking'),
             (2, 'Walking_Upstairs'),
             (3, 'Walking_Downstairs'),
@@ -18,7 +17,6 @@ class Ucihar(DataReader):
             (5, 'Standing'),
             (6, 'Laying')
         ]
-        self._id_to_label= [x[1] for x in label_map]
 
         if self.is_ratio():
             self.split_with_ratio()
@@ -44,12 +42,12 @@ class Ucihar(DataReader):
 
         # sub 11, 13, 25 show low accuracy with val 30
         # 14, 17 is show lower accuracy
-        if n == 10:
-            subjects['validation'] = [subject_list[12], subject_list[29]]
-        elif n == 29:
-            subjects['validation'] = [subject_list[10], subject_list[28]]
+        if n == 7:
+            subjects['validation'] = [subject_list[8], subject_list[22]]
+        elif n == 22:
+            subjects['validation'] = [subject_list[7], subject_list[24]]
         else:
-            subjects['validation'] = [subject_list[10], subject_list[29]]
+            subjects['validation'] = [subject_list[7], subject_list[22]]
 
         subjects['train'] = [ s for s in subject_list if s not in subjects['test'] and s not in subjects['validation'] ]
 
@@ -59,21 +57,19 @@ class Ucihar(DataReader):
     def _split_ucihar_orig(self):
         """ Original split of ucihar """
         subjects = {
-            # Original train set = 70% of all subjects
             'train': [
                 1, 3, 5, 6, 8, 11, 14, 15, 16, 17, 19,
                 21, 23, 25, 26, 27, 28, 29, 30
             ],
-            # 1/3 of test set = 10% of all subjects
             'validation': [
                 22, 7
             ],
-            # 2/3 of original test set = 20% of all subjects
             'test': [
                 2, 4, 9, 10, 12, 13, 18, 20, 24,
             ]
         }
         self._split_ucihar(subjects = subjects)
+
 
     # This data is already windowed and segmented
     def _split_ucihar(self, subjects=None):
@@ -94,16 +90,7 @@ class Ucihar(DataReader):
                     2, 9, 10, 13, 18, 24
                 ]
             }
-        print("Data: ", self._data['X'].shape, "Targets: ", self._data['y'].shape, "Subjects: ", self._data['id'].shape)
-
-        def split_uci_data(subjectlist):
-            flags = np.in1d(self._data['id'], subjectlist)
-            return (self._data['X'][flags], 
-                    to_categorical(self._data['y'][flags].astype(int), self.n_classes))
-
-        self._X_train, self._y_train = split_uci_data(subjects['train'])
-        self._X_valid, self._y_valid = split_uci_data(subjects['validation'])
-        self._X_test, self._y_test= split_uci_data(subjects['test'])
+        self.split_data(subjects, self._label_map)
 
 
     def read_data(self):
@@ -133,7 +120,6 @@ class Ucihar(DataReader):
         self._data = {}
         self._data['X'] = np.concatenate((x_train, x_test), 0)
         _labels = np.concatenate((y_train, y_test), 0)
-        _labels = _labels - 1
         self._data['y'] = _labels
         _subjects = np.concatenate((subjects_train, subjects_test), 0)
         self._data['id'] = _subjects

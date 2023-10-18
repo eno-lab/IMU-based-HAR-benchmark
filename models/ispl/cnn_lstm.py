@@ -52,8 +52,7 @@ def cnn_lstm(x_shape,
     return m
 
 
-def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy']):
-
+def get_config(dataset, lr_magnif=1):
     # imported from tsf 
     n_steps = -1
     for n in [4, 3, 5, 2]:
@@ -67,14 +66,23 @@ def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, 
     length = int(input_shape[1]//n_steps)
 
     # Give model specific configurations
-    hyperparameters = {'n_hidden': 512, 'n_steps': n_steps, 'length': length, 'n_signals': input_shape[-1],
-                       'learning_rate': 0.0005, 'cnn_depth': 3, 'lstm_depth': 2,
-                       'regularization_rate': 0.000093}
+    return {'n_hidden': 512, 'n_steps': n_steps, 'length': length, 'n_signals': input_shape[-1],
+            'learning_rate': 0.0005 * lr_magnif, 'cnn_depth': 3, 'lstm_depth': 2,
+            'regularization_rate': 0.000093}
 
-    return cnn_lstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+
+def gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config):
+    return cnn_lstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **config)
+
+
+def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy'], lr_magnif=1):
+    config = get_config(dataset, lr_magnif)
+    return gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config), config
+
+
+def get_optim_config(dataset, trial, lr_magnif=1):
+    raise NotImplementedError("No config for optimization")
 
 
 def get_dnn_framework_name():
     return 'tensorflow'
-
-

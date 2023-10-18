@@ -3,7 +3,6 @@ import os
 
 import numpy as np
 from ..core import DataReader
-from ..utils import to_categorical
 
 
 class Daphnet(DataReader):
@@ -85,25 +84,8 @@ class Daphnet(DataReader):
                 'test': [1, 5, 7]
             }
 
-        label_to_id = {x[0]: i for i, x in enumerate(self._label_map)}
-        self._id_to_label = [x[1] for x in self._label_map]
+        self.split_data(subjects, self._label_map)
 
-        _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
-        _x = self._data['X'][_filter]
-        _id = self._data['id'][_filter]
-        _y = [[label_to_id[y]]for y in self._data['y'][_filter]]
-        _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
-
-        _f_train = np.in1d(_id, subjects['train'])
-        _f_valid = np.in1d(_id, subjects['validation'])
-        _f_test = np.in1d(_id, subjects['test'])
-
-        self._X_train = _x[_f_train]
-        self._y_train = _y[_f_train]
-        self._X_valid = _x[_f_valid]
-        self._y_valid = _y[_f_valid]
-        self._X_test = _x[_f_test]
-        self._y_test = _y[_f_test]
 
     def read_data(self):
         ixs = []
@@ -115,7 +97,7 @@ class Daphnet(DataReader):
 
         self.read_data(
                 zip(ixs, filenames), 
-                lambda filename: pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None)
+                lambda filename: pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None),
                 label_col = -1,
                 x_magnif = 0.001,
                 interpolate_limit = 13 # 13/64 is almost 0.2 hz

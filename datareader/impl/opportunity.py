@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 from ..core import DataReader
-from ..utils import interp_nans, to_categorical
 
 
 class Opportunity(DataReader):
@@ -99,76 +98,12 @@ class Opportunity(DataReader):
             (407521, 'Drink from Cup'),
             (405506, 'Toggle Switch')
         ]
-
-        label_to_id = {x[0]: i for i, x in enumerate(label_map)}
-        self._id_to_label = [x[1] for x in label_map]
-
-        _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
-        print(self._data['X'].shape)
-        _x = self._data['X'][_filter]
-        print(_x.shape)
-        _id = self._data['id'][_filter]
-        _y = [[label_to_id[y]] for y in self._data['y'][_filter]]
-        _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
-
-        _f_train = np.in1d(_id, files['train'])
-        _f_valid = np.in1d(_id, files['validation'])
-        _f_test = np.in1d(_id, files['test'])
-
-        self._X_train = _x[_f_train]
-        self._y_train = _y[_f_train]
-        self._X_valid = _x[_f_valid]
-        self._y_valid = _y[_f_valid]
-        self._X_test = _x[_f_test]
-        self._y_test = _y[_f_test]
+        self.split_data(files, label_map)
 
     def read_data(self):
-        data = []
-        seg = []
-        file_ids = []
-        labels = []
-        for i, filename in enumerate(self._filelist):
-            print(f'Reading file, {filename}: {i+1} of {len(self._filelist)}')
-
-            df = pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None)
-            df = df.iloc[:,self._cols]
-
-            label_df = df.iloc[:, -1].astype(int)
-
-            df = df.iloc[:, :-1].astype(float)
-            df.interpolate(inplace=True, limit=6) # 6/30 = 0.2 Hz
-            df /= 1000
-
-            for ix, cur_label in enumerate(label_df):
-                #nan_c = 0
-                if cur_label == 0:
-                    label = None
-                    seg = []
-                    continue
-
-                if label is not None:
-                    if label != cur_label: # change label
-                        seg = []
-                        label = cur_label
-                else:
-                    label = cur_label
-
-                seg.append(ix)
-
-                if len(seg) == self._win_size:
-                    _sdf = df.iloc[seg,:]
-                    if _sdf.isna().any(axis=None):
-                        print(f"Warning: skip a segment include NaN. ({min(seg)}:{max(seg)+1}, label={label})")
-                        continue
-
-                    # accepted 
-                    data.append(_sdf)
-                    labels.append(label)
-                    file_ids.append(i)
-
-                    seg = seg[int(len(seg)//2):] # stride = win_size/2
-                
-        self._data = {}
-        self._data['X'] = np.asarray(data)
-        self._data['y'] = np.asarray(labels, dtype=int)
-        self._data['id'] = np.asarray(file_ids)
+        self.read_data(enumerate(self._filelist),
+                       lambda filename: pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None),
+                       label_col = -1,
+                       x_magnif = 0.001,
+                       interpolate_limit = 6, # 6/30 Hz = 0.2 Hz
+                       )

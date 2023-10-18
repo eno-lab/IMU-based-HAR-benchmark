@@ -109,17 +109,24 @@ def ispl_inception(x_shape,
     return m
 
 
-def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy']):
-    use_residual = True
-    use_bottleneck = True
-    #hyperparameters = {'learning_rate': 0.0005, 'regularization_rate': 0.00593,
-    hyperparameters = {'learning_rate': 0.01, 'regularization_rate': 0.00593,
-                       'network_depth': 5, 'filters_number': 64, 'max_kernel_size': 68,
-                       'use_residual': use_residual, 'use_bottleneck': use_bottleneck}
-    return ispl_inception(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+def get_config(dataset, lr_magnif=1):
+    return {'learning_rate': 0.0005 * lr_magnif, 'regularization_rate': 0.00593,
+            'network_depth': 5, 'filters_number': 64, 'max_kernel_size': 68,
+            'use_residual': True, 'use_bottleneck': True}
+
+
+def gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config):
+    return ispl_inception(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **config)
+
+
+def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy'], lr_magnif=1):
+    config = get_config(dataset, lr_magnif)
+    return gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config), config
+
+
+def get_optim_config(dataset, trial, lr_magnif=1):
+    raise NotImplementedError("No config for optimization")
 
 
 def get_dnn_framework_name():
     return 'tensorflow'
-
-

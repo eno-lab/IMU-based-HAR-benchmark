@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from ..core import DataReader
-from ..utils import interp_nans, to_categorical
+
 
 class Pamap2(DataReader):
     def __init__(self, dataset):
@@ -145,25 +145,7 @@ class Pamap2(DataReader):
                 # (24, 'rope jumping')
             ]
 
-        label_to_id = {x[0]: i for i, x in enumerate(label_map)}
-        self._id_to_label = [x[1] for x in label_map]
-
-        _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
-        _x = self._data['X'][_filter]
-        _id = self._data['id'][_filter]
-        _y = [[label_to_id[y]]for y in self._data['y'][_filter]]
-        _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
-
-        _f_train = np.in1d(_id, subjects['train'])
-        _f_valid = np.in1d(_id, subjects['validation'])
-        _f_test = np.in1d(_id, subjects['test'])
-
-        self._X_train = _x[_f_train]
-        self._y_train = _y[_f_train]
-        self._X_valid = _x[_f_valid]
-        self._y_valid = _y[_f_valid]
-        self._X_test = _x[_f_test]
-        self._y_test = _y[_f_test]
+        self.split_data(subjects, label_map)
 
     def read_data(self):
         self.read_data(enumerate(self._filelist),

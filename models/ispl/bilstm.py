@@ -37,16 +37,24 @@ def bilstm(x_shape,
     return m
 
 
-def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy']):
-    # Give model specific configurations
-    hyperparameters = {'n_hidden': 128, 'learning_rate': 0.0005, 'regularization_rate': 0.000093,
-                       'depth': 1,
-                       'merge_mode': 'concat'}
-    return bilstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **hyperparameters), hyperparameters
+def get_config(dataset, lr_magnif=1):
+    return = {'n_hidden': 128, 'learning_rate': 0.0005 * lr_magnif, 'regularization_rate': 0.000093,
+              'depth': 1,
+              'merge_mode': 'concat'}
+
+
+def gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config):
+    return bilstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **config)
+
+
+def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy'], lr_magnif=1):
+    config = get_config(dataset, lr_magnif)
+    return gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config), config
+
+
+def get_optim_config(dataset, trial, lr_magnif=1):
+    raise NotImplementedError("No config for optimization")
 
 
 def get_dnn_framework_name():
     return 'tensorflow'
-
-
-

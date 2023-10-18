@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 from ..core import DataReader
-from ..utils import interp_nans, to_categorical
 
 
 class OpportunityReal(DataReader):
@@ -57,60 +56,27 @@ class OpportunityReal(DataReader):
 
         self._cols = [x-1 for x in self._cols]
 
-        super().__init__(dataset, 'opportunity_real', 30, os.path.join('dataset', 'opportunity')) # 1 sec, 30Hz, cut off 2% of samples 
+        super().__init__(dataset, 'opportunity_real', 32, os.path.join('dataset', 'opportunity')) # 30Hz, almost 1 sec, cut off 2% of samples 
 
         if self.is_ratio():
             self.split_with_ratio()
         elif dataset == 'opportunity_real-task_b2':
             self._split_opportunity_task_b2()
+        elif dataset == 'opportunity_real-task_b2_no_null':
+            self._split_opportunity_task_b2_no_null()
         elif dataset == 'opportunity_real-task_c':
             self._split_opportunity_task_c()
+        elif dataset == 'opportunity_real-task_c_no_null':
+            self._split_opportunity_task_c_no_null()
         elif dataset == 'opportunity_real':
             self._split_opportunity()
         else:
             raise ValueError(f'invalid dataset name: {dataset}')
 
 
-    def _split_opportunity_task_b2(self):
-        files = {
-            'train': [ 0,  1 , 2,  3,  4, 
-                       6,      8,         11,
-                      12, 13,             17,
-                      18, 19, 20,         23],
-            'validation': [5, 7, 14],
-            'test':  [9, 10, 15, 16]
-        }
-
-        self._split_opportunity(files)
-
-
-    def _split_opportunity_task_c(self):
-        files = {
-            'train': [ 0,  1,  2,  3,  4, 
-                       6,      8,         11,
-                      12, 13,             17,
-                      18, 19,             23],
-            'validation': [5, 7, 14, 20],
-            'test':  [21, 22]
-        }
-
-        self._split_opportunity(files)
-
-
-    def _split_opportunity(self, files = None, label_map = None):
-        if files is None:
-            files = {
-                'train': [     1 , 2,  3,  4,  5, 
-                           6,      8,  9, 10,  
-                              13,     15, 16,    
-                          18, 19, 20,         23],
-                'validation': [0, 14, 17, 21],
-                'test':  [7, 11, 12, 22]
-            }
-        # names are from label_legend.txt of Opportunity dataset
-        # except 0-ie Other, which is an additional label
+    def _split_opportunity_task_b2_no_null(self):
         label_map = [
-            (0, 'Other'),
+            #(0, 'Other'),
             (406516, 'Open Door 1'),
             (406517, 'Open Door 2'),
             (404516, 'Close Door 1'),
@@ -130,25 +96,109 @@ class OpportunityReal(DataReader):
             (405506, 'Toggle Switch')
         ]
 
-        label_to_id = {x[0]: i for i, x in enumerate(label_map)}
-        self._id_to_label = [x[1] for x in label_map]
+        self._split_opportunity(files, label_map)
 
-        _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
-        _x = self._data['X'][_filter]
-        _id = self._data['id'][_filter]
-        _y = [label_to_id[y] for y in self._data['y'][_filter]]
-        _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
 
-        _f_train = np.in1d(_id, files['train'])
-        _f_valid = np.in1d(_id, files['validation'])
-        _f_test = np.in1d(_id, files['test'])
+    def _split_opportunity_task_b2(self, label_map = None):
+        files = {
+            'train': [    1 , 2,  3,  4,  5,
+                       6,      8,         11,
+                      12, 13,             17,
+                      18, 19, 20,         23],
+            'validation': [0, 7, 14],
+            'test':  [9, 10, 15, 16]
+        }
 
-        self._X_train = _x[_f_train]
-        self._y_train = _y[_f_train]
-        self._X_valid = _x[_f_valid]
-        self._y_valid = _y[_f_valid]
-        self._X_test = _x[_f_test]
-        self._y_test = _y[_f_test]
+        self._split_opportunity(files)
+
+
+    def _split_opportunity_task_c_no_null(self):
+        label_map = [
+            #(0, 'Other'),
+            (406516, 'Open Door 1'),
+            (406517, 'Open Door 2'),
+            (404516, 'Close Door 1'),
+            (404517, 'Close Door 2'),
+            (406520, 'Open Fridge'),
+            (404520, 'Close Fridge'),
+            (406505, 'Open Dishwasher'),
+            (404505, 'Close Dishwasher'),
+            (406519, 'Open Drawer 1'),
+            (404519, 'Close Drawer 1'),
+            (406511, 'Open Drawer 2'),
+            (404511, 'Close Drawer 2'),
+            (406508, 'Open Drawer 3'),
+            (404508, 'Close Drawer 3'),
+            (408512, 'Clean Table'),
+            (407521, 'Drink from Cup'),
+            (405506, 'Toggle Switch')
+        ]
+
+        self._split_opportunity_task_c(label_map)
+
+
+    def _split_opportunity_task_c(self, label_map = None):
+        files = {
+            'train': [ 0,  1,  2,  3,  4, 
+                       6,      8,         11,
+                      12, 13,             17,
+                      18, 19,             23],
+            'validation': [5, 7, 14, 20],
+            'test':  [21, 22]
+        }
+        cols = [
+            38, 39,
+            40, 41, 42, 43, 44, 45, 46,
+            51, 52, 53, 54, 55, 56, 57, 58, 59,
+            64, 65, 66, 67, 68, 69,
+            70, 71, 72, 77, 78, 79,
+            80, 81, 82, 83, 84, 85,
+            90, 91, 92, 93, 94, 95, 96, 97, 98,
+            250]
+        cols = [x-1 for x in cols[:-1]] # remove label
+        _cols = self._cols[:-1] # remove label
+
+        col_filter =  np.in1d(_cols, cols)
+
+        self._split_opportunity(files, label_map = label_map, x_col_filter = col_filter)
+
+
+    def _split_opportunity(self, files = None, label_map = None, x_col_filter=None):
+        if files is None:
+            files = {
+                'train': [     1 , 2,  3,  4,  5, 
+                           6,      8,  9, 10,  
+                              13,     15, 16,    
+                          18, 19, 20,         23],
+                'validation': [0, 14, 17, 21],
+                'test':  [7, 11, 12, 22]
+            }
+
+        if label_map is None:
+            label_map = [
+                (0, 'Other'),
+                (406516, 'Open Door 1'),
+                (406517, 'Open Door 2'),
+                (404516, 'Close Door 1'),
+                (404517, 'Close Door 2'),
+                (406520, 'Open Fridge'),
+                (404520, 'Close Fridge'),
+                (406505, 'Open Dishwasher'),
+                (404505, 'Close Dishwasher'),
+                (406519, 'Open Drawer 1'),
+                (404519, 'Close Drawer 1'),
+                (406511, 'Open Drawer 2'),
+                (404511, 'Close Drawer 2'),
+                (406508, 'Open Drawer 3'),
+                (404508, 'Close Drawer 3'),
+                (408512, 'Clean Table'),
+                (407521, 'Drink from Cup'),
+                (405506, 'Toggle Switch')
+            ]
+
+
+        self.split_data(files, label_map, x_col_filter)
+
 
     def read_data(self):
         data = []

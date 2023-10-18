@@ -3,6 +3,7 @@ import re
 
 import h5py
 import numpy as np
+from .utils import interp_nans, to_categorical
 
 
 class DataReader:
@@ -92,6 +93,31 @@ class DataReader:
         self._y_test = self.data['y'][ix_test]
 
 
+    def split_data(self, ids, label_map, x_col_filter=None):
+        label_to_id = {x[0]: i for i, x in enumerate(label_map)}
+        self._id_to_label = [x[1] for x in label_map]
+
+        _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
+        _x = self._data['X'][_filter]
+        _id = self._data['id'][_filter]
+        _y = [label_to_id[y] for y in self._data['y'][_filter]]
+        _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
+
+        if x_col_filter is not None:
+            _x = _x[:,:,x_col_filter]
+
+        _f_train = np.in1d(_id, ids['train'])
+        _f_valid = np.in1d(_id, ids['validation'])
+        _f_test = np.in1d(_id, ids['test'])
+
+        self._X_train = _x[_f_train]
+        self._y_train = _y[_f_train]
+        self._X_valid = _x[_f_valid]
+        self._y_valid = _y[_f_valid]
+        self._X_test = _x[_f_test]
+        self._y_test = _y[_f_test]
+
+
     def read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10):
         """
 
@@ -156,6 +182,14 @@ class DataReader:
         self._data['X'] = np.asarray(data)
         self._data['y'] = np.asarray(labels, dtype=int)
         self._data['id'] = np.asarray(subject_ids)
+
+    @property
+    def out_loss(self):
+        return 'categorical_crossentropy'
+
+    @property
+    def out_activ(self):
+        return 'softmax'
 
     @property
     def n_classes(self):

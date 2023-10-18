@@ -6,6 +6,7 @@ import pandas as pd
 from ..core import DataReader
 from ..utils import interp_nans, to_categorical
 
+
 class Wisdm(DataReader):
     def __init__(self, dataset):
 
@@ -16,7 +17,7 @@ class Wisdm(DataReader):
                 3, 4, 5, # acc x,y,z, 10 = 1g
             ]
         
-        super().__init__(dataset, 'wisdm', 60, os.path.join('dataset', 'WISDM_ar_v1.1')) # 20 hz, 3 sec
+        super().__init__(dataset, 'wisdm', 64, os.path.join('dataset', 'WISDM_ar_v1.1')) # 20 hz, almost 3 sec
         self._id_to_label = ['Walking', 'Jogging', 'Sitting', 'Standing', 'Upstairs', 'Downstairs']
 
         if self.is_ratio():
@@ -30,9 +31,8 @@ class Wisdm(DataReader):
             raise ValueError(f'invalid dataset name: {dataset}')
 
 
-    def _split_wisdm_losocv(self, n, label_map = None, limit=8):
-        n -=1
-        assert 0 <= n < limit
+    def _split_wisdm_losocv(self, n, label_map = None):
+        assert 1 <= n <= 37 
 
         subjects = {}
         subjects['test'] = [n]
@@ -44,7 +44,7 @@ class Wisdm(DataReader):
         else:
             subjects['validation'] = [34, 36]
 
-        subjects['train'] = [i for i in range(36) if (
+        subjects['train'] = [i for i in range(1, 37) if (
             i not in subjects['test'] and 
             i not in subjects['validation']
             )]
@@ -112,6 +112,7 @@ class Wisdm(DataReader):
         self._y_valid = _y[_f_valid]
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
+
 
     def read_data(self):
         lines = []

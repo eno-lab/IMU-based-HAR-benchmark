@@ -1,16 +1,6 @@
-# title       :utils
-# description :Script that contains utilities that are required by or shared with other scripts
-# author      :Ronald Mutegeki
-# date        :20210203
-# version     :1.0
-# usage       :Call it in main.py.
-# notes       :Majority imports are done in here. Processing of the dataset, Model training
-#              and evaluation are also done within this script.
-
-# TODO add our information
-
 import ast
 import os
+import re
 
 import h5py
 import matplotlib
@@ -19,11 +9,14 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import stats
-from tensorflow.keras.model import load_model
+from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
 from datareader.ispl import DataReader
+
+from sklearn.model_selection import train_test_split
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}. Let's avoid too many logs
 
@@ -36,12 +29,12 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 # **************** Dataset Configurations ******************
 def get_data_configuration(dataset):
-    if dataset == 'daphnet':
-        n_signals =   9  # Ankle acc - x,y,z; Upper Leg acc - x,y,z; Trunk acc - x,y,z;
+    if dataset.startswith('daphnet'):
+        n_signals = 9  # Ankle acc - x,y,z; Upper Leg acc - x,y,z; Trunk acc - x,y,z;
         win_size = 192  # 1 sec -> 64 | 2.56 (3) sec -> 192 | 5 sec -> 320 # sampling rate = 64hz
-        n_classes =  2  # 1 - no freeze (walk, stand, turn); 2 - freeze
-        n_steps =    3  # Since we are using 3 seconds and 192 is divisible by 3
-        length =    64  # Split each window of 192 time steps into sub sequences for the cnn
+        n_classes = 2  # 1 - no freeze (walk, stand, turn); 2 - freeze
+        n_steps = 3  # Since we are using 3 seconds and 192 is divisible by 3
+        length = 64  # Split each window of 192 time steps into sub sequences for the cnn
 
     elif dataset == 'ispl':
         n_signals = 9  # acc - x,y,z; gyro - x,y,z; lacc - x,y,z;
@@ -117,7 +110,7 @@ def get_data_configuration(dataset):
 
 
 def get_loss_and_activation(dataset):
-    if dataset.startswith('daphnet'):
+    if dataset == 'daphnet':
         return 'binary_crossentropy', 'sigmoid'
     else:
         return CategoricalCrossentropy(reduction=Reduction.AUTO, name='output_loss'), 'softmax'
@@ -151,14 +144,14 @@ def segment(x, y, window_size, dataset_signals=9):
 def _load_dataset(dataset='ucihar', datapath='dataset/ucihar', _type='original'):
     datapath = datapath.rstrip("/")
     # Check if our desired dataset has not yet been generated
-    if not os.path.exists(f'{datapath}/{dataset}.h5'):
+    if not os.path.exists(f'{datapath}/{dataset}.ispl.h5'):
         DataReader(dataset, datapath)
 
     # class labels
-    with open(f'{datapath}/{dataset}.h5.classes.json', 'r') as f:
+    with open(f'{datapath}/{dataset}.ispl.h5.classes.json', 'r') as f:
         labels = ast.literal_eval(f.read())
 
-    with h5py.File(f'{datapath}/{dataset}.h5', 'r') as f:
+    with h5py.File(f'{datapath}/{dataset}.ispl.h5', 'r') as f:
         X_train, y_train = np.array(f['train']['inputs']), np.array(f['train']['targets'])
         X_val, y_val = np.array(f['validation']['inputs']), np.array(f['validation']['targets'])
         X_test, y_test = np.array(f['test']['inputs']), np.array(f['test']['targets'])
@@ -170,19 +163,19 @@ def transform_y(y, nr_classes, dataset):
     # Transforms y, a list with one sequence of A timesteps
     # and B unique classes into a binary Numpy matrix of
     # shape (A, B)
-    if dataset == "ucihar" or dataset == "ispl":
+    if dataset.startswith("ucihar") or dataset.startswith("ispl"):
         y = np.array([a - 1 for a in y])
     ybinary = to_categorical(y, nr_classes)
     return ybinary
 
 
 # Model and dataset evaluation
-def evaluate_model(_model, train_gen, valid_gen, _epochs=20, patience=10,
-                   batch_size=64, _save_name='trained_models/please_provide_a_name.h5', _log_dir='logs/fit', no_weight=True):
+def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, patience=10, boot_strap_epochs=0,
+                   batch_size=64, _save_name='trained_models/please_provide_a_name.h5', _log_dir='logs/fit', no_weight=True, shuffle_on_train=False, lr_magnif_on_plateau=0.8):
     """
     Returns the best trained model and history objects of the currently provided train & test set
     """
-    early_stopping_monitor = EarlyStopping(patience=patience)
+    early_stopping_monitor = EarlyStopping(patience=patience, start_from_epoch=boot_strap_epochs)
 
     checkpoint_path = _save_name
     checkpoint_dir = os.path.dirname(checkpoint_path)
@@ -197,8 +190,8 @@ def evaluate_model(_model, train_gen, valid_gen, _epochs=20, patience=10,
     tensorboard_callback = TensorBoard(log_dir=_log_dir, histogram_freq=1)
 
     # Reduce Learning rate after plateau
-    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.8, patience=10,
-                                  min_lr=0.0001, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=lr_magnif_on_plateau, patience=10,
+                                  min_lr=0.0000001, verbose=1)
 
     class_weight = {}
     def calc_cl_w():
@@ -218,17 +211,18 @@ def evaluate_model(_model, train_gen, valid_gen, _epochs=20, patience=10,
     print(class_weight)
 
     # Training the model
-    history = _model.fit(train_gen
+    history = _model.fit(_X_train,
+                         _y_train,
                          batch_size=batch_size,
-                         validation_data=valid_gen,
+                         validation_data=(_X_test, _y_test),
                          epochs=_epochs,
                          verbose=1,
-                         #shuffle=True,
+                         shuffle=shuffle_on_train,
                          use_multiprocessing=True,
                          class_weight = class_weight,
                          callbacks=[cp_callback, tensorboard_callback, early_stopping_monitor, reduce_lr])
     best_model = load_model(checkpoint_path)
-    return best_model, history
+    return best_model, _model, history
 
 
 def load_dataset(dataset, plot_details=False):
@@ -240,13 +234,14 @@ def load_dataset(dataset, plot_details=False):
              'pamap2_losocv_i', where 1 <= i <= 8
              'pamap2_full_losocv_i', where 1 <= i <= 9
              'opportunity, 
-             'opportunity_task_a', 
-             'opportunity_task_b1', 
-             'opportunity_task_c', 
              'ucihar', 
              'ucihar_losocv_i', where 1 <= i <=  30
              'ispl'
     """
+
+    ratio_re_match = re.match('(.*)_ratio_(\d+)_(\d+)_(\d+)', dataset)
+    if ratio_re_match:
+        dataset = ratio_re_match.groups()[0]
 
     if dataset.startswith('opportunity_'):
         datapath = f'dataset/opportunity'
@@ -274,6 +269,28 @@ def load_dataset(dataset, plot_details=False):
     y_train = transform_y(y_train_int, n_classes, dataset)
     y_val = transform_y(y_val_int, n_classes, dataset)
     y_test = transform_y(y_test_int, n_classes, dataset)
+
+    if ratio_re_match is not None:
+        ratio_sum = 0
+        for i in [1, 2, 3]:
+            ratio_sum += int(ratio_re_match.groups()[i])
+
+        train_ratio  = int(ratio_re_match.groups()[1])/ratio_sum
+        valid_ratio  = int(ratio_re_match.groups()[2])/ratio_sum
+        test_ratio  =  int(ratio_re_match.groups()[3])/ratio_sum
+
+        X = np.concatenate([X_train, X_val, X_test])
+        y = np.concatenate([y_train, y_val, y_test])
+        ix = np.arange(X.shape[0])
+        ix_train, ix_test = train_test_split(ix, test_size = test_ratio)
+        ix_train, ix_valid= train_test_split(ix_train, test_size = valid_ratio/(train_ratio+valid_ratio))
+
+        X_train = X[ix_train]
+        X_valid = X[ix_valid]
+        X_test = X[ix_test]
+        y_train = y[ix_train]
+        y_valid= y[ix_valid]
+        y_test = y[ix_test]
 
     # Using original train/val/test split from datareader.py
 
