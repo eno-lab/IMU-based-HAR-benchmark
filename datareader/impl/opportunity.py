@@ -56,7 +56,7 @@ class Opportunity(DataReader):
 
         self._cols = [x-1 for x in self._cols]
 
-        super().__init__(dataset, 'opportunity', 30) # 1 sec, 30Hz, cut off 2% of samples 
+        super().__init__(dataset, 'opportunity', 32) # 1 sec, 30Hz, cut off 2% of samples 
 
         if self.is_ratio():
             self.split_with_ratio()
@@ -101,7 +101,7 @@ class Opportunity(DataReader):
         self.split_data(files, label_map)
 
     def read_data(self):
-        self.read_data(enumerate(self._filelist),
+        self._read_data(enumerate(self._filelist),
                        lambda filename: pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None),
                        label_col = -1,
                        x_magnif = 0.001,

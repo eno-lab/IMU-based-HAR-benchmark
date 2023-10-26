@@ -95,7 +95,7 @@ class Daphnet(DataReader):
                 ixs.append(i)
                 filenames.append(filename)
 
-        self.read_data(
+        self._read_data(
                 zip(ixs, filenames), 
                 lambda filename: pd.read_csv(os.path.join(self.datapath, 'dataset', filename), sep=" ", header=None),
                 label_col = -1,
