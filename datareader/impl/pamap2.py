@@ -148,7 +148,7 @@ class Pamap2(DataReader):
         self.split_data(subjects, label_map)
 
     def read_data(self):
-        self.read_data(enumerate(self._filelist),
+        self._read_data(enumerate(self._filelist),
                        lambda filename: pd.read_csv(os.path.join(self.datapath, 'Protocol', filename), sep=" ", header=None),
                        label_col = -1,
                        interpolate_limit = 20 # 20/100 Hz = 0.2 Hz
