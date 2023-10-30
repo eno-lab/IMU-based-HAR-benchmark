@@ -1,14 +1,14 @@
+
 import os
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 import importlib
 from datetime import datetime
 from time import time
 
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
 
 from datareader import gen_datareader
 
@@ -28,8 +28,9 @@ parser.add_argument('--lr_magnif', type=float, default=1)
 parser.add_argument('--lr_magnif_on_plateau', type=float, default=0.8)
 parser.add_argument('--lr_auto_adjust_based_bs', action='store_true')
 parser.add_argument('--mixed_precision', default=None)
-parser.add_argument('--pretrained_weight', default=None)
+parser.add_argument('--pretrained_model', default=None)
 parser.add_argument('--two_pass', action='store_true')
+parser.add_argument('--skip_train', action='store_true')
 parser.add_argument('--best_selection_metrics', default='mf1')
 parser.add_argument('--optuna', action='store_true')
 parser.add_argument('--optuna_study_suffix', default='')
@@ -191,12 +192,6 @@ for dataset in datasets:
                                 if args.mixed_precision is not None:
                                     tf.keras.mixed_precision.set_global_policy(args.mixed_precision)
 
-                                if pass_n == 1:
-                                    if args.pretrained_weight is not None:
-                                        model.load_weights(args.pretrained_weight)
-                                else:
-                                    model.load_weights(best_model_weight_path)
-
                         elif framework_name == 'pytoroch':
                             raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
                         else:
@@ -204,9 +199,16 @@ for dataset in datasets:
 
                         if args.optuna:
                             hyperparameters  = eval(f'mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)')
-                            model = eval(f'mod.gen_model(input_shape, n_classes, out_loss, out_activ, METRICS, hyperparameters)')
                         else:
-                            model, hyperparameters  = eval(f'mod.gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=METRICS, lr_magnif=lr_magnif)')
+                            hyperparameters  = eval(f'mod.get_config(dataset, lr_magnif=lr_magnif)')
+
+                        if pass_n == 1:
+                            if args.pretrained_model is not None:
+                                model = tf.keras.saving.load_model(args.pretrained_model )
+                            else:
+                                model = eval(f'mod.gen_model(input_shape, n_classes, out_loss, out_activ, METRICS, hyperparameters)')
+                        elif pass_n == 2:
+                            model = tf.keras.saving.load_model(best_model_weight_path)
 
                         for key, item in hyperparameters.items():
                             print(f"{key.replace('_', ' ').capitalize()}: {item}")
@@ -217,20 +219,22 @@ for dataset in datasets:
                     if framework_name == 'tensorflow':
                         try:
                             #model.summary()
-                        
                             if 'ispl_utils' not in once_flags:
                                 # Util Imports
                                 from utils import evaluate_model, plot_metrics
 
-                            # Train and evaluate the current model on the dataset. Save the trained models and histories
-                            best_model, last_model, history = evaluate_model(model, X_train, y_train, X_val, y_val, patience=patience, 
-                                                            boot_strap_epochs = args.boot_strap_epochs,
-                                                            _epochs=epochs, _save_name=save_name, _log_dir=log_dir,
-                                                            shuffle_on_train = shuffle_on_train if pass_n == 1 else True,
-                                                            batch_size = batch_size,
-                                                            no_weight = not clw,
-                                                            lr_magnif_on_plateau = args.lr_magnif_on_plateau)
-
+                            if args.skip_train:
+                                best_model_path = None
+                                history = None
+                            else:
+                                # Train and evaluate the current model on the dataset. Save the trained models and histories
+                                model, history, best_model_path = evaluate_model(model, X_train, y_train, X_val, y_val, patience=patience, 
+                                                                boot_strap_epochs = args.boot_strap_epochs,
+                                                                _epochs=epochs, _save_name=save_name, _log_dir=log_dir,
+                                                                shuffle_on_train = shuffle_on_train if pass_n == 1 else True,
+                                                                batch_size = batch_size,
+                                                                no_weight = not clw,
+                                                                lr_magnif_on_plateau = args.lr_magnif_on_plateau)
 
 
                             print('###############################################################################')
@@ -250,7 +254,8 @@ for dataset in datasets:
                     # **************** Time to summarize the model's performance ****************
                     report.write(f"{model_name} Model : {datetime.now()}\n")
                     # Training History
-                    report.write(f"Model History \n{pd.DataFrame(history.history)}\n\n")
+                    if history is not None:
+                        report.write(f"Model History \n{pd.DataFrame(history.history)}\n\n")
                     model_str = []
                     model.summary(print_fn=lambda x: model_str.append(x))
                     report.write("\n".join(model_str))
@@ -260,7 +265,8 @@ for dataset in datasets:
                     report.write(f"Batch Size: {batch_size}\n")
 
                     # let's plot our training history
-                    plot_metrics(history, model_name, dataset, os.path.join(img_path, f"{file_prefix}_history.png"))
+                    if history is not None:
+                        plot_metrics(history, model_name, dataset, os.path.join(img_path, f"{file_prefix}_history.png"))
 
                     for key, item in hyperparameters.items():
                         report.write(f"{key.replace('_', ' ').capitalize()}: {item}\n")
@@ -268,17 +274,22 @@ for dataset in datasets:
                     best_model_weight_path = None
                     best_score = None
                     for model_type in ["last_model", "best_model"]:
+                        if model_type == 'best_model':
+                            if best_model_path is None:
+                                continue
+                            model.load_weights(best_model_path)
+
                         print('###############################################################################')
                         print(model_type)
                         print('###############################################################################')
-                        model = eval(model_type)
 
                         if args.two_pass:
                             _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.h5")) # h5 is fast
                         else:
                             _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.h5")) # h5 is fast
                         if framework_name == 'tensorflow':
-                            model.save(_save_model_path) 
+                            if not args.skip_train:
+                                model.save(_save_model_path) 
                             # Results for each model
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             predictions = model.predict(X_test).argmax(1)
@@ -320,10 +331,12 @@ for dataset in datasets:
                         normalised_confusion_matrix_df = pd.DataFrame(normalised_confusion_matrix, index=labels, columns=labels)
                         report.write(f"Normalised Confusion Matrix: True\n{normalised_confusion_matrix_df}\n\n\n")
 
-                        sns.heatmap(normalised_confusion_matrix_df, cmap='rainbow')
-                        plt.title("Confusion matrix\n(normalised to % of total test data)")
-                        plt.ylabel('True label')
-                        plt.xlabel('Predicted label')
+                        ConfusionMatrixDisplay(cm, display_labels=labels).plot(cmap=plt.cm.Blues,)
+                        plt.grid(False)
+                        #sns.heatmap(normalised_confusion_matrix_df, cmap='rainbow')
+                        #plt.title("Confusion matrix\n(normalised to % of total test data)")
+                        #plt.ylabel('True label')
+                        #plt.xlabel('Predicted label')
                         plt.savefig(os.path.join(img_path, f"{file_prefix}_{model_type}_confusion_matrix.png"), bbox_inches='tight')
 
                         clr = classification_report(y_test.argmax(1), predictions,
