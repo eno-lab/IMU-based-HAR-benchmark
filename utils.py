@@ -1,3 +1,14 @@
+# title       :utils
+# description :Script that contains utilities that are required by or shared with other scripts
+# author      :Ronald Mutegeki
+# date        :20210203
+# version     :1.0
+# usage       :Call it in main.py.
+# notes       :Majority imports are done in here. Processing of the dataset, Model training
+#              and evaluation are also done within this script.
+
+# TODO add our information
+
 import ast
 import os
 import re
@@ -221,8 +232,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, pat
                          use_multiprocessing=True,
                          class_weight = class_weight,
                          callbacks=[cp_callback, tensorboard_callback, early_stopping_monitor, reduce_lr])
-    best_model = load_model(checkpoint_path)
-    return best_model, _model, history
+    return _model, history, checkpoint_path
 
 
 def load_dataset(dataset, plot_details=False):
