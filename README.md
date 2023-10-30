@@ -2,6 +2,14 @@
 
 This is a benchmark utility for IMU-based HAR models. 
 
+# LICENSE
+Use of this benchmark in publications must be acknowledged by referencing the following publication [1]. 
+We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publications.
+
+[1] TBC: plz wait for Nov 1.
+TBC: plz wait for Nov. 1st
+https://doi.org/xxxxx
+
 # How to run
 ```
 usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model_name MODEL_NAME [--ispl_datareader] [--class_weight] [--epochs EPOCHS] 
