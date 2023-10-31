@@ -1,5 +1,6 @@
 numpy
-tensorflow-gpu
+pandas
+tensorflow
 sklearn
 scikit-learn
 matplotlib
@@ -7,3 +8,4 @@ seaborn
 h5py
 scipy
 simplejson
+optuna
