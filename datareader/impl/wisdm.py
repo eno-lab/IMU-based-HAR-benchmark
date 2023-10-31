@@ -90,9 +90,9 @@ class Wisdm(DataReader):
 
         if subjects is None:
             subjects = {
-                'train': [i for i in range(1,37) if i not in [29,31,32,33,34,36]],
-                'validation': [29, 31, 32, 33],
-                'test': [34, 36]
+                'train': [i for i in range(1,27)],
+                'validation': [27, 28, 29],
+                'test': [31, 32, 33, 34, 35, 36]
             }
 
         label_to_id = {label: i for i, label in enumerate(self._id_to_label)}
