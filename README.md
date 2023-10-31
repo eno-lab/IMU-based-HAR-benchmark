@@ -6,9 +6,11 @@ This is a benchmark utility for IMU-based HAR models.
 Use of this benchmark in publications must be acknowledged by referencing the following publication [1]. 
 We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publications.
 
-[1] TBC: plz wait for Nov 1.
-TBC: plz wait for Nov. 1st
-https://doi.org/xxxxx
+- Yu Enokibori. 2023. rTsfNet: a DNN model with Multi-head 3D Rotation and Time Series Feature Extraction for IMU-based Human Activity Recognition. arXiv:2310.19283 [cs.HC]
+- https://doi.org/10.48550/arXiv.2310.19283 (or https://arxiv.org/abs/2310.19283 )
+
+## NOTE
+The DOI and citation text will be updated for formal one. So, please check here before you make a submission.
 
 # How to run
 ```
