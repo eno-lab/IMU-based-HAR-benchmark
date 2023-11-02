@@ -91,7 +91,7 @@ class Wisdm(DataReader):
         if subjects is None:
             subjects = {
                 'train': [i for i in range(1,27)],
-                'validation': [27, 28, 29],
+                'validation': [27, 28, 29, 30],
                 'test': [31, 32, 33, 34, 35, 36]
             }
 

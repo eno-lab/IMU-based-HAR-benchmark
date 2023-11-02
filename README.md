@@ -126,5 +126,13 @@ models.MODEL_NAME.gen_model(input_shape, n_classes, out_loss, out_activ, metrics
 
 An exmaple is rTsfNet. Please looking into https://github.com/eno-lab/rTsfNet .
 
+# Performance comparison
+Pleaase see [REGISTERED PERFORMANCES](https://github.com/eno-lab/IMU-based-HAR-benchmark/wiki)
+
+We are welcome to register the performance of new algorithms. Please let us know.
+
+# Dataset settings 
+Please see [wiki](https://github.com/eno-lab/IMU-based-HAR-benchmark/wiki)
+
 # Acknowledgement
 This bemchmark system is forked from iSPLInception ( https://github.com/rmutegeki/iSPLInception/ ).
