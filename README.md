@@ -47,7 +47,7 @@ environment variable
   CUDA_VISIBLE_DEVICES=N                                    # GPU selection. -1 disable GPU.
 ```
 
-# Available Dataset @ 2023/10/13
+# Available Dataset
 DATASETS is handled via 'eval'.
 
 Available Datasets specifications are
