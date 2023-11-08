@@ -137,7 +137,7 @@ class DataReader:
         for i, filename in loop_elements:
             df = read_file_func(filename)
             df = df.iloc[:,self._cols]
-            label_df = df.iloc[:, -1].astype(int)
+            label_df = df.iloc[:, label_col].astype(int)
 
             if label_col == -1:
                 df = df.iloc[:, :-1].astype(float)
