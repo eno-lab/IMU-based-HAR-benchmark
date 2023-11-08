@@ -74,6 +74,8 @@ Available Datasets specifications are
 - ['ucihar']                                        # the same as ['ucihar-orig']
 - [f'ucihar-losocv_{i}' for i in range(1, 31)]
 - ['ucihar-ispl']                                   # iSPL based split
+- ['real_world'], 
+- [f'real_world-losocv_{i}' for i in range(1,16)]
 ```
 
 ## Links for the datasets
@@ -82,6 +84,7 @@ Available Datasets specifications are
 - [PAMAP2](https://doi.org/10.24432/C5NW2H)
 - [OPPORTUNITY](https://doi.org/10.24432/C5M027)
 - [UCIHAR](https://doi.org/10.24432/C54S4K)
+- [RealWorld](https://www.uni-mannheim.de/dws/research/projects/activity-recognition/dataset/dataset-realworld)
 
 ## How to locate the downloaded files
 
