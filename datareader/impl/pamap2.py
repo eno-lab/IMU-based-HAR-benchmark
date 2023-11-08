@@ -30,11 +30,11 @@ class Pamap2(DataReader):
 
         if self.is_ratio():
             self.split_with_ratio()
-        elif dataset.startswith('pamap2-full-losocv_'):
-            n = int(dataset[len('pamap2-full-losocv_'):])
-            self._split_pamap2_full_losocv(n)
-        elif dataset == 'pamap2-full':
-            self._split_pamap2_full()
+        elif dataset.startswith('pamap2-with_rj-losocv_'):
+            n = int(dataset[len('pamap2-with_rj-losocv_'):])
+            self._split_pamap2_with_rj_losocv(n)
+        elif dataset == 'pamap2-with_rj':
+            self._split_pamap2_with_rj()
         elif dataset.startswith('pamap2-losocv_'):
             n = int(dataset[len('pamap2-losocv_'):])
             self._split_pamap2_losocv(n)
@@ -43,7 +43,7 @@ class Pamap2(DataReader):
         else:
             raise ValueError(f'invalid dataset name: {dataset}')
 
-    def _split_pamap2_full_losocv(self, n):
+    def _split_pamap2_with_rj_losocv(self, n):
         label_map = [
             # (0, 'other'),
             (1, 'lying'),
@@ -88,7 +88,7 @@ class Pamap2(DataReader):
         self._split_pamap2(subjects, label_map=label_map)
 
 
-    def _split_pamap2_full(self):
+    def _split_pamap2_with_rj(self):
         label_map = [
             # (0, 'other'),
             (1, 'lying'),
