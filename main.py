@@ -1,5 +1,6 @@
 
 import os
+import gc
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -112,6 +113,7 @@ for dataset in datasets:
         ]
 
         def objective(trial):
+
             if trial is not None:
                 file_prefix = f'{_file_prefix}_trial-{trial.number}'
             else:
@@ -204,7 +206,7 @@ for dataset in datasets:
 
                         if pass_n == 1:
                             if args.pretrained_model is not None:
-                                model = tf.keras.saving.load_model(args.pretrained_model )
+                                model = tf.keras.saving.load_model(args.pretrained_model)
                             else:
                                 model = eval(f'mod.gen_model(input_shape, n_classes, out_loss, out_activ, METRICS, hyperparameters)')
                         elif pass_n == 2:
@@ -277,7 +279,13 @@ for dataset in datasets:
                         if model_type == 'best_model':
                             if best_model_path is None:
                                 continue
-                            model.load_weights(best_model_path)
+
+                            if framework_name == 'tensorflow':
+                                model.load_weights(best_model_path) 
+                            elif framework_name == 'pytoroch':
+                                raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                            else:
+                                raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
                         print('###############################################################################')
                         print(model_type)
@@ -290,7 +298,9 @@ for dataset in datasets:
                         if framework_name == 'tensorflow':
                             if not args.skip_train:
                                 model.save(_save_model_path) 
+
                             # Results for each model
+                            # TODO check: is it a cause of "CUDA_ERROR_ILLEGAL_ADDRESS"? should we reload the model from the pass?
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             predictions = model.predict(X_test).argmax(1)
                         elif framework_name == 'pytoroch':
@@ -299,9 +309,9 @@ for dataset in datasets:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
 
-                        report.write('###############################################################################')
+                        report.write('###############################################################################\n')
                         report.write(model_type)
-                        report.write('###############################################################################')
+                        report.write('###############################################################################\n')
 
                         report.write('\n\n')
                         report.write(f"Test Accuracy: {scores[1] * 100}\n")
@@ -358,6 +368,17 @@ for dataset in datasets:
                     if not args.optuna:
                         total_prediction.append(predictions)
                         total_true.append(y_test.argmax(axis=1))
+
+                    if model is not None:
+                        del model
+
+                    if framework_name == 'tensorflow':
+                        tf.keras.backend.clear_session()
+                    elif framework_name == 'pytoroch':
+                        raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                    else:
+                        raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
+                    gc.collect()
 
                     return best_score['mf1'], best_score['loss'], best_score['acc']
 

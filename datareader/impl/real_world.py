@@ -108,10 +108,11 @@ class RealWorld(DataReader):
                 seq_ix = np.arange(min_index, max_index+1, 20) # where resampled at 
                 lacked_ix = seq_ix[~np.in1d(seq_ix, act_data.index.to_numpy())] # extract not included ones.
                 act_data = pd.concat((act_data, pd.DataFrame(index=lacked_ix)), axis=1)
+                act_data.sort_index(inplace=True) # not necessary. just in a case.
                 act_data.interpolate(inplace=True)
                 act_data = act_data.loc[seq_ix,:] # resampling
-                act_data = act_data.reset_index()
-                act_data.iloc[:,0] = act_id
+                act_data = act_data.reset_index() # the removed index will be placed on the first column
+                act_data.iloc[:,0] = act_id # overwrite the first column with the activity id
                 total_data.append(act_data)
 
 
