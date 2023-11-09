@@ -60,19 +60,19 @@ Available Datasets specifications are
 - ['pamap2-with_rj']                                # include the label 24: rope jumping that is optional activity
 - [f'pamap2-losocv_{i}' for i in range(1, 9)]       # subject 9 include the label 24 only, so ignored
 - [f'pamap2-full-losocv_{i}' for i in range(1, 10)] 
-- ['opportunity']			            # iSPL based train/test set split
-- ['opportunity\_real']                             # iSPL based train/test set split, include Null, split ignoring label boundary 
-- ['opportunity\_real-task\_b2']                    # task b2 of opportunity challenge, include Null, split ignoring label boundary, exclude 12 ACCs.
-- ['opportunity\_real-task\_b2\_no\_null']          # task b2 of opportunity challenge, exclude Null, split ignoring label boundary, exclude 12 ACCs.
-- ['opportunity\_real-task\_c']                     # task c of opportunity challenge, include Null, split ignoring label boundary 
-- ['opportunity\_real-task\_c\_no\_null']           # task c of opportunity challenge, exclude Null, split ignoring label boundary 
-- ['opportunity\_real\_last\_label']                # select the last label of segments instead of 'mode' value. 
-- ['opportunity\_real\_last\_label\_b2']            # select the last label of segments instead of 'mode' value. 
-- ['opportunity\_real\_last\_label\_b2\_no\_null']  # select the last label of segments instead of 'mode' value. 
-- ['opportunity\_real\_last\_label\_c']             # select the last label of segments instead of 'mode' value. 
-- ['opportunity\_real\_last\_label\_c\_no\_null']   # select the last label of segments instead of 'mode' value. 
+- ['opportunity']			                        # iSPL based train/test set split
+- ['opportunity_real']                              # iSPL based train/test set split, include Null, split ignoring label boundary 
+- ['opportunity_real-task_b2']                      # task b2 of opportunity challenge, include Null, split ignoring label boundary, exclude 12 ACCs.
+- ['opportunity_real-task_b2_no_null']              # task b2 of opportunity challenge, exclude Null, split ignoring label boundary, exclude 12 ACCs.
+- ['opportunity_real-task_c']                       # task c of opportunity challenge, include Null, split ignoring label boundary 
+- ['opportunity_real-task_c_no_null']               # task c of opportunity challenge, exclude Null, split ignoring label boundary 
+- ['opportunity_real_last_label']                   # select the last label of segments instead of 'mode' value. 
+- ['opportunity_real_last_label_b2']                # select the last label of segments instead of 'mode' value. 
+- ['opportunity_real_last_label_b2_no_null']        # select the last label of segments instead of 'mode' value. 
+- ['opportunity_real_last_label_c']                 # select the last label of segments instead of 'mode' value. 
+- ['opportunity_real_last_label_c_no_null']         # select the last label of segments instead of 'mode' value. 
 - ['ucihar']                                        # the same as ['ucihar-orig']
-- [f'ucihar-losocv_{i}' for i in range(1, 31)]
+- [f'ucihar-losocv_{i}' for i in range(1, 31)]     
 - ['ucihar-ispl']                                   # iSPL based split
 - ['real_world'], 
 - [f'real_world-losocv_{i}' for i in range(1,16)]
