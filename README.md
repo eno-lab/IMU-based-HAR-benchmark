@@ -76,6 +76,8 @@ Available Datasets specifications are
 - ['ucihar-ispl']                                   # iSPL based split
 - ['real_world'], 
 - [f'real_world-losocv_{i}' for i in range(1,16)]
+- ['m_health'], 
+- [f'm_health-losocv_{i}' for i in range(1,10)]
 ```
 
 ## Links for the datasets
@@ -85,6 +87,7 @@ Available Datasets specifications are
 - [OPPORTUNITY](https://doi.org/10.24432/C5M027)
 - [UCIHAR](https://doi.org/10.24432/C54S4K)
 - [RealWorld](https://www.uni-mannheim.de/dws/research/projects/activity-recognition/dataset/dataset-realworld)
+- [mHealth](https://doi.org/10.24432/C5TW22)
 
 ## How to locate the downloaded files
 

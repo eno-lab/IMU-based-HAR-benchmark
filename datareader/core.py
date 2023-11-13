@@ -118,7 +118,7 @@ class DataReader:
         self._y_test = _y[_f_test]
 
 
-    def _read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10):
+    def _read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10, null_label=0):
         """
 
         Args:
@@ -150,7 +150,7 @@ class DataReader:
                 df *= x_magnif
 
             for ix, cur_label in enumerate(label_df):
-                if cur_label == 0:
+                if cur_label == null_label:
                     label = None
                     seg = []
                     continue

@@ -2030,3 +2030,16 @@ dataset/realworld2016_dataset/proband9/videos/video_running_thumb.png
 dataset/realworld2016_dataset/proband9/videos/video_sitting_thumb.png
 dataset/realworld2016_dataset/proband9/videos/video_standing_thumb.png
 dataset/realworld2016_dataset/proband9/videos/video_walking_thumb.png
+dataset/MHEALTHDATASET
+dataset/MHEALTHDATASET/m_health.h5
+dataset/MHEALTHDATASET/mHealth_subject7.log
+dataset/MHEALTHDATASET/mHealth_subject10.log
+dataset/MHEALTHDATASET/mHealth_subject6.log
+dataset/MHEALTHDATASET/mHealth_subject4.log
+dataset/MHEALTHDATASET/mHealth_subject5.log
+dataset/MHEALTHDATASET/mHealth_subject1.log
+dataset/MHEALTHDATASET/mHealth_subject2.log
+dataset/MHEALTHDATASET/mHealth_subject3.log
+dataset/MHEALTHDATASET/mHealth_subject8.log
+dataset/MHEALTHDATASET/mHealth_subject9.log
+dataset/MHEALTHDATASET/README.txt
