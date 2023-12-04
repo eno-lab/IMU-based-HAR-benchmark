@@ -20,7 +20,9 @@ class MHealth(DataReader):
             'mHealth_subject9.log',
             'mHealth_subject10.log'
         ]
-        self._cols = [ i for i in range(24) ] # acc, ecg1, ecg2, acc, gyro, mag, acc, gyro, mag, label
+        self._cols = [ i for i in range(24) ]
+        # doubt: acc, ecg1, ecg2, acc, gyro, mag, acc, gyro, mag, label
+        # correct probably: acc, ecg1, ecg2, acc, mag, gyro, acc, mag, gyro, label
 
         self._label_map = [
             # (0, 'null'),
@@ -67,7 +69,7 @@ class MHealth(DataReader):
             i not in subjects['validation']
             )]
 
-        self._split_pamap2(subjects, label_map=label_map)
+        self._split(subjects, label_map=label_map)
 
 
     def _split(self, subjects = None):
