@@ -176,7 +176,7 @@ for dataset in datasets:
 
                     try:
                         mod = importlib.import_module(f'models.{model_name}')
-                        framework_name  = eval(f'mod.get_dnn_framework_name()')
+                        framework_name  = mod.get_dnn_framework_name()
                         if framework_name == 'tensorflow':
                             if 'tf' not in once_flags:
                                 once_flags['tf'] = True
@@ -200,15 +200,15 @@ for dataset in datasets:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
                         if args.optuna:
-                            hyperparameters  = eval(f'mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)')
+                            hyperparameters  = mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)
                         else:
-                            hyperparameters  = eval(f'mod.get_config(dataset, lr_magnif=lr_magnif)')
+                            hyperparameters  = mod.get_config(dataset, lr_magnif=lr_magnif)
 
                         if pass_n == 1:
                             if args.pretrained_model is not None:
                                 model = tf.keras.saving.load_model(args.pretrained_model)
                             else:
-                                model = eval(f'mod.gen_model(input_shape, n_classes, out_loss, out_activ, METRICS, hyperparameters)')
+                                model = mod.gen_model(input_shape, n_classes, out_loss, out_activ, METRICS, hyperparameters)
                         elif pass_n == 2:
                             model = tf.keras.saving.load_model(best_model_weight_path)
 

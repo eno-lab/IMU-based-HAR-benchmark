@@ -335,7 +335,7 @@ class DataReader:
                 ['S06R01.txt', 'S06R02.txt'], # R02 includes label:1 only.
                 ['S07R01.txt', 'S07R02.txt'],
                 ['S08R01.txt'],
-                ['S09R01.txt']
+                ['S09R01.txt'],
                 ['S10R01.txt']  # 1 only
         ]
 
