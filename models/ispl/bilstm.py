@@ -38,9 +38,9 @@ def bilstm(x_shape,
 
 
 def get_config(dataset, lr_magnif=1):
-    return = {'n_hidden': 128, 'learning_rate': 0.0005 * lr_magnif, 'regularization_rate': 0.000093,
-              'depth': 1,
-              'merge_mode': 'concat'}
+    return {'n_hidden': 128, 'learning_rate': 0.0005 * lr_magnif, 'regularization_rate': 0.000093,
+            'depth': 1,
+            'merge_mode': 'concat'}
 
 
 def gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config):

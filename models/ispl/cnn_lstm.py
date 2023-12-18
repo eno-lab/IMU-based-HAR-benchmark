@@ -16,19 +16,32 @@ def cnn_lstm(x_shape,
              n_hidden=128,
              learning_rate=0.01,
              n_steps=4,
-             length=32,
-             n_signals=9,
              regularization_rate=0.01,
              cnn_depth=3,
              lstm_depth=2,
              metrics=['accuracy']):
     """ CNN1D_LSTM version 1: Divide 1 window into several smaller frames, then apply CNN to each frame
     - Input data format: [None, n_frames, n_timesteps, n_signals]"""
+    if n_steps is None:
+        n_steps = -1
+        considered_steps = [4, 3, 5, 2]
+        for n in considered_steps:
+            if input_shape[1] % n == 0:
+                n_steps = n
+                break
+
+        if n_steps < 0:
+            raise ValueError(f"Failed to auto n_steps selection. The length of input cannot be divided by any of {considered_steps}")
+
+    elif x_shape[1] % n_steps != 0:
+        raise ValueError(f"The length of input cannot be divided by {n_steps}")
+
+    length = int(x_shape[1]//n_steps)
 
     _input_shape = x_shape[1:]
     m = Sequential()
 
-    m.add(Reshape((n_steps, length, n_signals), input_shape=_input_shape))
+    m.add(Reshape((n_steps, length, x_shape[-1]), input_shape=_input_shape))
     m.add(BatchNormalization())
     m.add(TimeDistributed(Conv1D(filters=32, kernel_size=3, activation='relu', padding='same')))
     m.add(TimeDistributed(Conv1D(filters=64, kernel_size=5, activation='relu')))
@@ -53,20 +66,9 @@ def cnn_lstm(x_shape,
 
 
 def get_config(dataset, lr_magnif=1):
-    # imported from tsf 
-    n_steps = -1
-    for n in [4, 3, 5, 2]:
-        if input_shape[1] % n == 0:
-            n_steps = n
-            break
-
-    if n_steps < 0:
-        raise ValueError("The length of input cannot be divided by {n_steps}")
-
-    length = int(input_shape[1]//n_steps)
-
     # Give model specific configurations
-    return {'n_hidden': 512, 'n_steps': n_steps, 'length': length, 'n_signals': input_shape[-1],
+    return {'n_hidden': 512, 
+            'n_steps': None, # Auto
             'learning_rate': 0.0005 * lr_magnif, 'cnn_depth': 3, 'lstm_depth': 2,
             'regularization_rate': 0.000093}
 
