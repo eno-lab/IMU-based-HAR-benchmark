@@ -36,8 +36,6 @@ def vanilla_lstm(x_shape,
 
 def get_config(dataset, lr_magnif=1):
     return {'n_hidden': 128, 'learning_rate': 0.0005 * lr_magnif, 'regularization_rate': 0.000093}
-            'regularization_rate': 0.000093}
-
 
 def gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config):
     return vanilla_lstm(input_shape, n_classes, out_loss, out_activ, metrics=metrics, **config)

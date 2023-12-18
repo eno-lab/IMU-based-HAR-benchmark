@@ -26,7 +26,7 @@ def cnn_lstm(x_shape,
         n_steps = -1
         considered_steps = [4, 3, 5, 2]
         for n in considered_steps:
-            if input_shape[1] % n == 0:
+            if x_shape[1] % n == 0:
                 n_steps = n
                 break
 

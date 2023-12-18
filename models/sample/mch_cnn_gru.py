@@ -17,7 +17,9 @@ def mch_cnn_gru(x_shape,
            out_loss, 
            out_activ, 
            learning_rate=0.001,
-           metrics=['accuracy']):
+           metrics=['accuracy'],
+           regularization_rate=None,
+           ):
 
     _input_shape = x_shape[1:]
 
@@ -42,7 +44,7 @@ def mch_cnn_gru(x_shape,
     x = GlobalAveragePooling1D()(x)
     x = BatchNormalization()(x)
     x = Dense(n_classes, activation='softmax', 
-            kernel_regularizer=l2(regularization_rate)
+            kernel_regularizer=None if regularization_rate is None else l2(regularization_rate)
             )(x)
 
     m = Model(inputs, x)

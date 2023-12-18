@@ -1,7 +1,7 @@
 from tensorflow.keras import Input
 from tensorflow.keras.layers import Conv1D, Concatenate, Dense, \
         TimeDistributed, BatchNormalization, Flatten, MaxPooling1D,\
-        Dropout,
+        Dropout
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
@@ -53,8 +53,9 @@ def icg_net(x_shape,
     x = TimeDistributed(Flatten())(x)
     x = GRU(32, return_sequences=True)(x)
     x = Dropout(0.3)(x)
-    x = GRU(16)(x)
-    x = Dense(64, return_sequences=True)(x)
+    x = GRU(16, return_sequences=True)(x)
+    x = Flatten()(x)
+    x = Dense(64)(x)
     x = BatchNormalization()(x)
     x = Dense(n_classes, activation='softmax', kernel_regularizer=l2(regularization_rate))(x)
 
