@@ -1,4 +1,3 @@
-
 import os
 import gc
 import pandas as pd
@@ -53,7 +52,8 @@ patience = args.patience
 shuffle_on_train = args.shuffle_on_train
 lr_magnif = args.lr_magnif
 
-once_flags = {}
+pd.set_option('display.max_rows', 400)
+pd.set_option('display.max_columns', 200)
 
 # it is not suitable for many case.
 # not recommended
@@ -65,16 +65,55 @@ if args.lr_auto_adjust_based_bs and batch_size != 64:
 
 datasets = eval(args.datasets) 
 model_name = args.model_name
+training_id = f'{time()*1000:.0f}'
+
 
 print("===============")
 print(f"{datasets=}")
 print(f"{model_name=}")
 print("===============")
 
-# Training time
-training_id = f'{time()*1000:.0f}'
+# ...................................................................................#
+# init framework
+# ...................................................................................#
+mod = importlib.import_module(f'models.{model_name}')
+framework_name  = mod.get_dnn_framework_name()
+if framework_name == 'tensorflow':
+    import tensorflow as tf
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    # ...................................................................................#
+    # for debug
+    # tf.debugging.experimental.enable_dump_debug_info( #     "/tmp/tfdbg2_logdir",
+    #     tensor_debug_mode="FULL_HEALTH",
+    #     circular_buffer_size=-1)
+    # ...................................................................................#
+
+    if args.mixed_precision is not None:
+        tf.keras.mixed_precision.set_global_policy(args.mixed_precision)
+
+    if 'evaluate_model' not in globals():
+        from utils import evaluate_model
+    if 'plot_metrics' not in globals():
+        from utils import plot_metrics
+
+elif framework_name == 'pytoroch':
+    raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+else:
+    raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
+# ...................................................................................#
+
+# ...................................................................................#
+if args.ispl_datareader:
+    from utils import load_dataset, get_loss_and_activation
+# ...................................................................................#
 
 for dataset in datasets:
+
+    dataset_origin = dataset.split('-')[0]
+    file_prefix = f"{training_id}_{model_name}_{dataset}"
 
     if args.optuna:
         study_name = f'{model_name}_{dataset}_{args.optuna_study_suffix}'  # Unique identifier of the study.
@@ -85,13 +124,7 @@ for dataset in datasets:
                                     #pruner=optuna.pruners.HyperbandPruner(), 
                                     load_if_exists=True)
 
-    dataset_origin = dataset.split('-')[0]
-    file_prefix = f"{training_id}_{model_name}_{dataset}"
-
     if args.ispl_datareader:
-        if 'ispl_utils' not in once_flags:
-            # Util Imports
-            from utils import *
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = load_dataset(dataset)
         out_loss, out_activ = get_loss_and_activation(dataset)
         file_prefix = f"{file_prefix}_ispl-datareader"
@@ -99,9 +132,6 @@ for dataset in datasets:
         dr = gen_datareader(dataset)
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = dr.gen_ispl_style_set()
         out_loss, out_activ = dr.out_loss, dr.out_activ
-
-    pd.set_option('display.max_rows', 400)
-    pd.set_option('display.max_columns', 200)
 
     _file_prefix = file_prefix
 
@@ -126,7 +156,6 @@ for dataset in datasets:
             # Path to images
             img_path = os.path.join("images", dataset_origin, file_prefix)
             os.makedirs(img_path, exist_ok=True)
-
 
             with open(report_name, "w") as report:
                 print("################# Information #################")
@@ -171,34 +200,9 @@ for dataset in datasets:
                 for pass_n, clw in enumerate([False, args.class_weight] if args.two_pass else [args.class_weight]):
                     pass_n +=1
 
-                    if pass_n == 2:
+                    if pass_n == 2 and model is not None:
                         del model
-
                     try:
-                        mod = importlib.import_module(f'models.{model_name}')
-                        framework_name  = mod.get_dnn_framework_name()
-                        if framework_name == 'tensorflow':
-                            if 'tf' not in once_flags:
-                                once_flags['tf'] = True
-                                # ...................................................................................#
-                                import tensorflow as tf
-                                gpus = tf.config.experimental.list_physical_devices('GPU')
-                                for gpu in gpus:
-                                    tf.config.experimental.set_memory_growth(gpu, True)
-                                # for debug
-                                # tf.debugging.experimental.enable_dump_debug_info( #     "/tmp/tfdbg2_logdir",
-                                #     tensor_debug_mode="FULL_HEALTH",
-                                #     circular_buffer_size=-1)
-                                # ...................................................................................#
-
-                                if args.mixed_precision is not None:
-                                    tf.keras.mixed_precision.set_global_policy(args.mixed_precision)
-
-                        elif framework_name == 'pytoroch':
-                            raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
-                        else:
-                            raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
-
                         if args.optuna:
                             hyperparameters  = mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)
                         else:
@@ -218,17 +222,15 @@ for dataset in datasets:
                         raise NotImplementedError(f'The model {model_name} is not implemented enough yet: {e}')
 
 
-                    if framework_name == 'tensorflow':
-                        try:
-                            #model.summary()
-                            if 'ispl_utils' not in once_flags:
-                                # Util Imports
-                                from utils import evaluate_model, plot_metrics
-
-                            if args.skip_train:
-                                best_model_path = None
-                                history = None
-                            else:
+                    if args.skip_train:
+                        best_model_path = None
+                        history = None
+                    else:
+                        #--------------------------------------------------------------#
+                        # Training
+                        #--------------------------------------------------------------#
+                        if framework_name == 'tensorflow':
+                            try:
                                 # Train and evaluate the current model on the dataset. Save the trained models and histories
                                 model, history, best_model_path = evaluate_model(model, X_train, y_train, X_val, y_val, patience=patience, 
                                                                 boot_strap_epochs = args.boot_strap_epochs,
@@ -239,18 +241,18 @@ for dataset in datasets:
                                                                 lr_magnif_on_plateau = args.lr_magnif_on_plateau)
 
 
-                            print('###############################################################################')
-                        except Exception as e:
-                            print(f"######################## Oh Man! An error occurred. #########################\n{e}")
-                            import traceback
-                            #print(repr(traceback.format_exception(e) # for 3.10 > python version
-                            print(repr(traceback.format_exception(None, e, e.__traceback__)))
+                                print('###############################################################################')
+                            except Exception as e:
+                                print(f"######################## Oh Man! An error occurred. #########################\n{e}")
+                                import traceback
+                                #print(repr(traceback.format_exception(e) # for 3.10 > python version
+                                print(repr(traceback.format_exception(None, e, e.__traceback__)))
 
-                    elif framework_name == 'pytoroch':
-                        raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
-                    else:
-                        raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
-
+                        elif framework_name == 'pytoroch':
+                            raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                        else:
+                            raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
+                        #--------------------------------------------------------------#
 
 
                     # **************** Time to summarize the model's performance ****************
@@ -295,6 +297,10 @@ for dataset in datasets:
                             _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.h5")) # h5 is fast
                         else:
                             _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.h5")) # h5 is fast
+
+                        #--------------------------------------------------------------#
+                        # save trained model and get scores
+                        #--------------------------------------------------------------#
                         if framework_name == 'tensorflow':
                             if not args.skip_train:
                                 model.save(_save_model_path) 
@@ -307,7 +313,7 @@ for dataset in datasets:
                             raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
-
+                        #--------------------------------------------------------------#
 
                         report.write('###############################################################################\n')
                         report.write(model_type)
