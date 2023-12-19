@@ -25,8 +25,10 @@ class Pamap2(DataReader):
                 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  # IMU Chest
                 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49  # IMU ankle
             ]
-        
+
         super().__init__(dataset, 'pamap2', 256)
+
+        self._sensor_ids = [i for i in range(3) for _ in range(12)]
 
         if self.is_ratio():
             self.split_with_ratio()
@@ -38,6 +40,16 @@ class Pamap2(DataReader):
         elif dataset.startswith('pamap2-losocv_'):
             n = int(dataset[len('pamap2-losocv_'):])
             self._split_pamap2_losocv(n)
+        elif dataset.startswith('pamap2-separate'):
+            with_sep_ids = False
+            if dataset.endswith('_with_sep_ids'):
+                with_sep_ids = True
+                dataset = dataset[0:-len('_with_sep_ids')]
+
+            l = [0,1,2]
+            if dataset.startswith('pamap2-separate_'):
+                l = [int(s) for s in dataset[len('pamap2-separate_'):].split("_")]
+            self._split_pamap2(separate_targets=l, with_separate_ids = with_sep_ids)
         elif dataset == 'pamap2':
             self._split_pamap2()
         else:
@@ -114,7 +126,7 @@ class Pamap2(DataReader):
         self._split_pamap2(label_map=label_map)
 
 
-    def _split_pamap2(self, subjects = None, label_map = None):
+    def _split_pamap2(self, subjects = None, label_map = None, separate_targets=None, with_separate_ids=False):
         if subjects is None:
             subjects = {
                 'train': [0, 1, 2, 3, 6, 7, 8],
@@ -145,7 +157,7 @@ class Pamap2(DataReader):
                 # (24, 'rope jumping')
             ]
 
-        self.split_data(subjects, label_map)
+        self.split_data(subjects, label_map, separate_targets = separate_targets, with_separate_ids = with_separate_ids)
 
     def read_data(self):
         self._read_data(enumerate(self._filelist),

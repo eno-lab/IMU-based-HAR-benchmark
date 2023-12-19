@@ -58,15 +58,29 @@ class Opportunity(DataReader):
 
         super().__init__(dataset, 'opportunity', 32) # 1 sec, 30Hz, cut off 2% of samples 
 
+        self._sensor_ids = [i for i in range(5) for _ in range(3*3)] # jacket sensor only
+        print(self._sensor_ids)
+        self._sensor_ids.extend([-1 for _ in range(3*5+1) for _ in range(2)])
+
         if self.is_ratio():
             self.split_with_ratio()
+        elif dataset.startswith('opportunity-separate'):
+            with_sep_ids = False
+            if dataset.endswith('_with_sep_ids'):
+                with_sep_ids = True
+                dataset = dataset[0:-len('_with_sep_ids')]
+
+            l = [0,1,2,3,4]
+            if dataset.startswith('opportunity-separate_'):
+                l = [int(s) for s in dataset[len('opportunity-separate_'):].split("_")]
+            self._split_opportunity(separate_targets=l, with_separate_ids = with_sep_ids)
         elif dataset == 'opportunity':
             self._split_opportunity()
         else:
             raise ValueError(f'invalid dataset name: {dataset}')
 
 
-    def _split_opportunity(self, files = None, label_map = None):
+    def _split_opportunity(self, files = None, label_map = None, separate_targets=None, with_separate_ids=False):
         if files is None:
             files = {
                 'train': [     1 , 2,  3,  4,  5, 
@@ -98,7 +112,7 @@ class Opportunity(DataReader):
             (407521, 'Drink from Cup'),
             (405506, 'Toggle Switch')
         ]
-        self.split_data(files, label_map)
+        self.split_data(files, label_map, separate_targets = separate_targets, with_separate_ids = with_separate_ids)
 
     def read_data(self):
         self._read_data(enumerate(self._filelist),

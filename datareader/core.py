@@ -16,6 +16,7 @@ class DataReader:
             self.datapath = dataset_path
 
         self._id_to_label = None
+        self._sensor_ids = None
         self._X_train = None
         self._y_train = None
         self._X_valid = None
@@ -93,7 +94,7 @@ class DataReader:
         self._y_test = self.data['y'][ix_test]
 
 
-    def split_data(self, ids, label_map, x_col_filter=None):
+    def split_data(self, ids, label_map, x_col_filter=None, separate_targets=None, with_separate_ids=False):
         label_to_id = {x[0]: i for i, x in enumerate(label_map)}
         self._id_to_label = [x[1] for x in label_map]
 
@@ -117,12 +118,47 @@ class DataReader:
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
 
+        if separate_targets is not None:
+            if self._sensor_ids is None:
+                raise NotImplementedError("self._sensor_ids is still None")
+            l = {'train': [], 'valid':[], 'test': []}
+            valid_imu_ids = set(self._sensor_ids)
+            invalid_imu_ids = [i for i in separate_targets if i not in valid_imu_ids]
+            if len(invalid_imu_ids) != 0:
+                raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}")
+
+            shapes = {}
+            for mode in ('train', 'valid', 'test'):
+                for imu_id in separate_targets:
+                    v = eval(f'self._X_{mode}[:, :, np.in1d(self._sensor_ids, imu_id)]')
+                    if mode not in shapes:
+                        shapes[mode] = v.shape
+                    elif shapes[mode][1] != v.shape[1]:  # different col num
+                        raise ValueError(f"number of columns is different on column id: {imu_id}, type: {mode}")
+                    l[mode].append(v)
+
+            self._y_train = np.repeat(self._y_train, len(separate_targets), axis=0)
+            self._y_test = np.repeat(self._y_test, len(separate_targets), axis=0)
+            self._y_valid = np.repeat(self._y_valid, len(separate_targets), axis=0)
+
+            self._X_train = np.vstack(l['train'])
+            self._X_test = np.vstack(l['test'])
+            self._X_valid = np.vstack(l['valid'])
+
+            if with_separate_ids:
+                def _tmp(x):
+                    return np.concatenate([x, (np.ones((1, x.shape[1], x.shape[0]))*np.repeat(separate_targets, x.shape[0]//len(separate_targets))).transpose((2,1,0))], -1)
+
+                self._X_train = _tmp(self._X_train)
+                self._X_test = _tmp(self._X_test)
+                self._X_valid = _tmp(self._X_valid)
+
 
     def _read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10, null_label=0):
         """
 
         Args:
-            loop_elements: used as 'for id, filename in loop_elements'
+            loop_elements: sed as 'for id, filename in loop_elements'
             read_file_func: 
                 args: filename
                 return: pandas.DataFrame
