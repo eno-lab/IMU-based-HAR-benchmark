@@ -121,7 +121,7 @@ class DataReader:
         if separate_targets is not None:
             if self._sensor_ids is None:
                 raise NotImplementedError("self._sensor_ids is still None")
-            l = {'train': [], 'valid':[], 'test': []}
+            x_l = {'train': [], 'valid':[], 'test': []}
             valid_imu_ids = set(self._sensor_ids)
             invalid_imu_ids = [i for i in separate_targets if i not in valid_imu_ids]
             if len(invalid_imu_ids) != 0:
@@ -135,19 +135,21 @@ class DataReader:
                         shapes[mode] = v.shape
                     elif shapes[mode][1] != v.shape[1]:  # different col num
                         raise ValueError(f"number of columns is different on column id: {imu_id}, type: {mode}")
-                    l[mode].append(v)
+                    x_l[mode].append(v)
 
-            self._y_train = np.repeat(self._y_train, len(separate_targets), axis=0)
-            self._y_test = np.repeat(self._y_test, len(separate_targets), axis=0)
-            self._y_valid = np.repeat(self._y_valid, len(separate_targets), axis=0)
+            self._X_train = np.vstack(x_l['train'])
+            self._X_test = np.vstack(x_l['test'])
+            self._X_valid = np.vstack(x_l['valid'])
 
-            self._X_train = np.vstack(l['train'])
-            self._X_test = np.vstack(l['test'])
-            self._X_valid = np.vstack(l['valid'])
+            self._y_train = np.concatenate([self._y_train for _ in separate_targets], 0)
+            self._y_test= np.concatenate([self._y_test for _ in separate_targets], 0)
+            self._y_valid= np.concatenate([self._y_valid for _ in separate_targets], 0)
 
             if with_separate_ids:
                 def _tmp(x):
-                    return np.concatenate([x, (np.ones((1, x.shape[1], x.shape[0]))*np.repeat(separate_targets, x.shape[0]//len(separate_targets))).transpose((2,1,0))], -1)
+                    _ids = np.repeat(separate_targets, x.shape[0]//len(separate_targets))[:,np.newaxis, np.newaxis]
+                    _ids = np.repeat(_ids, x.shape[1], axis=1)
+                    return np.concatenate([x, _ids], -1)
 
                 self._X_train = _tmp(self._X_train)
                 self._X_test = _tmp(self._X_test)
