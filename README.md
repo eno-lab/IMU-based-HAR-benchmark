@@ -22,7 +22,7 @@ usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model
 
 optional arguments:
   -h, --help                                                # show this help message and exit
-  --datasets DATASETS	                                    # evaluate dataset or datasets for cv
+  --datasets DATASETS                                       # evaluate dataset or datasets for cv
   --model_name MODEL_NAME                                   # module will be evaluated
   --ispl_datareader                                         # use iSPL implementation datareaders for ucihar, daphnet, pamap2 and opportunity
   --class_weight                                            # use class weight                                                    
@@ -47,6 +47,15 @@ environment variable
   CUDA_VISIBLE_DEVICES=N                                    # GPU selection. -1 disable GPU.
 ```
 
+## Examples
+```
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'ispl.ispl_inception'
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'sample.mch_cnn_gru' --patience 50 --epochs 600
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['opportunity']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --optuna --optuna_study_suffix 20231101 --optuna_num_of_trial 600
+```
+The last two examples requiring the rTsfNet model. Plz see [Related repositories] section.
+
 # Available Dataset
 DATASETS is handled via 'eval'.
 
@@ -60,7 +69,7 @@ Available Datasets specifications are
 - ['pamap2-with_rj']                                # include the label 24: rope jumping that is optional activity
 - [f'pamap2-losocv_{i}' for i in range(1, 9)]       # subject 9 include the label 24 only, so ignored
 - [f'pamap2-full-losocv_{i}' for i in range(1, 10)] 
-- ['opportunity']			                        # iSPL based train/test set split
+- ['opportunity']                                   # iSPL based train/test set split
 - ['opportunity_real']                              # iSPL based train/test set split, include Null, split ignoring label boundary 
 - ['opportunity_real-task_b2']                      # task b2 of opportunity challenge, include Null, split ignoring label boundary, exclude 12 ACCs.
 - ['opportunity_real-task_b2_no_null']              # task b2 of opportunity challenge, exclude Null, split ignoring label boundary, exclude 12 ACCs.

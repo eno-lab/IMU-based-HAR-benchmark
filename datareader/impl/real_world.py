@@ -184,5 +184,6 @@ class RealWorld(DataReader):
         self._read_data(enumerate(self.users),
                        read_func,
                        label_col = 0,
-                       interpolate_limit = 10 # 10/50 Hz = 0.2 Hz
+                       interpolate_limit = 10, # 10/50 Hz = 0.2 Hz
+                       null_label = -1
                        )
