@@ -160,7 +160,7 @@ class DataReader:
         """
 
         Args:
-            loop_elements: sed as 'for id, filename in loop_elements'
+            loop_elements: used as 'for id, filename in loop_elements'
             read_file_func: 
                 args: filename
                 return: pandas.DataFrame
