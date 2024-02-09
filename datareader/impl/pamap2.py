@@ -19,31 +19,36 @@ class Pamap2(DataReader):
             'subject108.dat', 
             'subject109.dat' # 109 includes label:24 only
         ]
-        self._cols = [
-                1,  # Label
-                4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,  # IMU Hand
-                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  # IMU Chest
-                38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49  # IMU ankle
-            ]
-        
-        super().__init__(dataset, 'pamap2', 256)
 
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset.startswith('pamap2-with_rj-losocv_'):
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'pamap2', 
+                win_size = 256, 
+                data_cols = [
+                    1,  # Label
+                    4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,  # IMU Hand
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  # IMU Chest
+                    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49  # IMU ankle
+                ],
+                sensor_ids = [i for i in range(3) for _ in range(12)], # 12 cols for three imu
+                )
+
+
+    def parse_and_run_data_split_rule_dependig_on_dataest(self):
+        dataset = self.dataset 
+
+        if dataset.startswith('pamap2-with_rj-losocv_'):
             n = int(dataset[len('pamap2-with_rj-losocv_'):])
-            self._split_pamap2_with_rj_losocv(n)
+            self._split_with_rj_losocv(n)
         elif dataset == 'pamap2-with_rj':
-            self._split_pamap2_with_rj()
-        elif dataset.startswith('pamap2-losocv_'):
-            n = int(dataset[len('pamap2-losocv_'):])
-            self._split_pamap2_losocv(n)
-        elif dataset == 'pamap2':
-            self._split_pamap2()
+            self._split_with_rj()
         else:
-            raise ValueError(f'invalid dataset name: {dataset}')
+            return False
 
-    def _split_pamap2_with_rj_losocv(self, n):
+        return True
+
+
+    def _split_with_rj_losocv(self, n):
         label_map = [
             # (0, 'other'),
             (1, 'lying'),
@@ -65,12 +70,12 @@ class Pamap2(DataReader):
             # (20, 'playing soccer'),
             (24, 'rope jumping')
         ]
-        self._split_pamap2_losocv(n, label_map=label_map)
+        self.split_losocv(n, label_map=label_map)
 
 
-    def _split_pamap2_losocv(self, n, label_map = None, limit=8):
+    def split_losocv(self, n, label_map = None):
         n -=1
-        assert 0 <= n < limit
+        assert 0 <= n < 8
 
         subjects = {}
         subjects['test'] = [n]
@@ -85,10 +90,10 @@ class Pamap2(DataReader):
             i not in subjects['validation']
             )]
 
-        self._split_pamap2(subjects, label_map=label_map)
+        self.split(subjects, label_map=label_map)
 
 
-    def _split_pamap2_with_rj(self):
+    def _split_with_rj(self):
         label_map = [
             # (0, 'other'),
             (1, 'lying'),
@@ -111,10 +116,10 @@ class Pamap2(DataReader):
             (24, 'rope jumping')
         ]
 
-        self._split_pamap2(label_map=label_map)
+        self.split(label_map=label_map)
 
 
-    def _split_pamap2(self, subjects = None, label_map = None):
+    def split(self, subjects = None, label_map = None):
         if subjects is None:
             subjects = {
                 'train': [0, 1, 2, 3, 6, 7, 8],
