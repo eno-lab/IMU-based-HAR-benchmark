@@ -1,5 +1,6 @@
 import os
 import gc
+import sys
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -35,6 +36,7 @@ parser.add_argument('--best_selection_metrics', default='mf1')
 parser.add_argument('--optuna', action='store_true')
 parser.add_argument('--optuna_study_suffix', default='')
 parser.add_argument('--optuna_num_of_trial', type=int, default=10)
+parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
 args = parser.parse_args()
 
 import optuna
@@ -51,7 +53,10 @@ batch_size = args.batch_size
 patience = args.patience
 shuffle_on_train = args.shuffle_on_train
 lr_magnif = args.lr_magnif
-
+downsampling_ignore_rate = args.downsampling_ignore_rate
+if not (0<= downsampling_ignore_rate < 1):
+    sys.exit(f"Invalid downsampling_ignore_rate, {downsampling_ignore_rate}. Valid range is 0<= rate < 1.")
+    
 pd.set_option('display.max_rows', 400)
 pd.set_option('display.max_columns', 200)
 
@@ -132,6 +137,17 @@ for dataset in datasets:
         dr = gen_datareader(dataset)
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = dr.gen_ispl_style_set()
         out_loss, out_activ = dr.out_loss, dr.out_activ
+
+
+    if downsampling_ignore_rate > 0:
+        def downsampling(X, y):
+            assert X.shape[0] == y.shape[0]
+            _len = X.shape[0]
+            _ix = np.round(np.linspace(0, _len-1, round(_len*(1-downsampling_ignore_rate)))).astype(int)
+            return X[_ix], y[_ix]
+        X_train, y_train = downsampling(X_train, y_train)
+        X_val, y_val = downsampling(X_val, y_val)
+        X_test, y_test = downsampling(X_test, y_test)
 
     _file_prefix = file_prefix
 
