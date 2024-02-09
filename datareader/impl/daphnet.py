@@ -7,12 +7,6 @@ from ..core import DataReader
 
 class Daphnet(DataReader):
     def __init__(self, dataset):
-        self._label_map = (
-            # (0, 'Other')
-            (1, 'No freeze'),
-            (2, 'Freeze')
-        )
-
         self._subjects = [
                 ['S01R01.txt', 'S01R02.txt'],
                 ['S02R01.txt'],
@@ -28,23 +22,17 @@ class Daphnet(DataReader):
                 ['S09R01.txt'],
                 ['S10R01.txt']  # 1 only
         ]
-        self._cols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        self._cols = [x-1 for x in self._cols]
 
-        super().__init__(dataset, 'daphnet', 192)  # 3 sec 64Hz
-
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset.startswith('daphnet-losocv_'):
-            n = int(dataset[len('daphnet-losocv_'):])
-            self._split_daphnet_losocv(n)
-        elif dataset == 'daphnet':
-            self._split_daphnet()
-        else:
-            raise ValueError(f'invalid dataset name: {dataset}')
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'daphnet', 
+                win_size = 192,  # 3 sec 64Hz
+                data_cols = [x for x in range(10)],
+                sensor_ids = [ix for ix in range(3) for _ in range(3)] # three sensors for three axes
+                )
 
 
-    def _split_daphnet_losocv(self, n, label_map = None):
+    def split_losocv(self, n, label_map = None):
         n -=1
         assert 0 <= n < 10
 
@@ -73,18 +61,25 @@ class Daphnet(DataReader):
             i not in subjects['validation']
             )]
 
-        self._split_daphnet(subjects)
+        self.split(subjects)
 
 
-    def _split_daphnet(self, subjects = None):
-        if subjects is None:
-            subjects = {
+    def split(self, tr_val_ts_ids = None, label_map = None):
+        if tr_val_ts_ids is None:
+            tr_val_ts_ids = {
                 'train': [0, 3, 8, 9, 10, 11, 12],
                 'validation': [2, 4, 6],
                 'test': [1, 5, 7]
             }
+        
+        if label_map is None:
+            label_map = (
+                # (0, 'Other')
+                (1, 'No freeze'),
+                (2, 'Freeze')
+            )
 
-        self.split_data(subjects, self._label_map)
+        self.split_data(tr_val_ts_ids, label_map)
 
 
     def read_data(self):

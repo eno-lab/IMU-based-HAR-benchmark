@@ -7,32 +7,29 @@ from ..core import DataReader
 
 class Ucihar(DataReader):
     def __init__(self, dataset):
-        super().__init__(dataset, 'ucihar', 128)
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'ucihar', 
+                win_size = 128,
+                data_cols = None,
+                sensor_ids = [0 for _ in range(9)])
 
-        self._label_map = [
-            (1, 'Walking'),
-            (2, 'Walking_Upstairs'),
-            (3, 'Walking_Downstairs'),
-            (4, 'Sitting'),
-            (5, 'Standing'),
-            (6, 'Laying')
-        ]
 
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset in [ 'ucihar-orig', 'ucihar']:
-            self._split_ucihar_orig()
-        elif dataset.startswith('ucihar-losocv_'):
-            n = int(dataset[len('ucihar-losocv_'):])
-            self._split_ucihar_losocv(n)
-        elif dataset == 'ucihar-ispl':
-            self._split_ucihar()
+
+    def parse_and_run_data_split_rule_dependig_on_dataest(self):
+        dataset = self.dataset
+
+        if dataset == 'ucihar-ispl':
+            self.split_ispl()
+        elif dataset == 'ucihar-orig':
+            self.split()
         else:
-            raise ValueError(f'invalid dataset name: {dataset}')
+            return False
+
+        return True
 
 
-    # This data is already windowed and segmented
-    def _split_ucihar_losocv(self, n):
+    def split_losocv(self, n):
         assert 1 <= n <=30
         subject_list = [i for i in range(1, 31)] 
         n -= 1
@@ -51,12 +48,12 @@ class Ucihar(DataReader):
 
         subjects['train'] = [ s for s in subject_list if s not in subjects['test'] and s not in subjects['validation'] ]
 
-        self._split_ucihar(subjects = subjects)
+        self.split(subjects)
 
 
-    def _split_ucihar_orig(self):
+    def split(self, tr_val_ts_ids = None, label_map = None):
         """ Original split of ucihar """
-        subjects = {
+        tr_val_ts_ids = {
             'train': [
                 1, 3, 5, 6, 8, 11, 14, 15, 16, 17, 19,
                 21, 23, 25, 26, 27, 28, 29, 30
@@ -68,29 +65,40 @@ class Ucihar(DataReader):
                 2, 4, 9, 10, 12, 13, 18, 20, 24,
             ]
         }
-        self._split_ucihar(subjects = subjects)
+
+        if label_map is None:
+            label_map = [
+                (1, 'Walking'),
+                (2, 'Walking_Upstairs'),
+                (3, 'Walking_Downstairs'),
+                (4, 'Sitting'),
+                (5, 'Standing'),
+                (6, 'Laying')
+            ]
+
+        self.split_data(tr_val_ts_ids, label_map)
 
 
     # This data is already windowed and segmented
-    def _split_ucihar(self, subjects=None):
-        if subjects is None:
-            # ispl based split
-            subjects = {
-                # Original train set = 70% of all subjects
-                'train': [
-                    1, 3, 5, 6, 7, 8, 11, 14, 15, 16, 17,
-                    19, 21, 22, 23, 25, 26, 27, 28, 29, 30
-                ],
-                # 1/3 of test set = 10% of all subjects
-                'validation': [
-                    4, 12, 20
-                ],
-                # 2/3 of original test set = 20% of all subjects
-                'test': [
-                    2, 9, 10, 13, 18, 24
-                ]
-            }
-        self.split_data(subjects, self._label_map)
+    def split_ispl(self):
+        # ispl based split
+        subjects = {
+            # Original train set = 70% of all subjects
+            'train': [
+                1, 3, 5, 6, 7, 8, 11, 14, 15, 16, 17,
+                19, 21, 22, 23, 25, 26, 27, 28, 29, 30
+            ],
+            # 1/3 of test set = 10% of all subjects
+            'validation': [
+                4, 12, 20
+            ],
+            # 2/3 of original test set = 20% of all subjects
+            'test': [
+                2, 9, 10, 13, 18, 24
+            ]
+        }
+
+        self.split(subjects)
 
 
     def read_data(self):
