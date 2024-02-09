@@ -89,6 +89,19 @@ Available Datasets specifications are
 - [f'm_health-losocv_{i}' for i in range(1,10)]
 ```
 
+## Suffix options 
+
+### Separate sensor option
+If add the following suffix for a dataset specification, the sensors included in the dataset are handled indivisually.
+
+```-separate[_0_1_2_3...][_with_sep_ids]```
+
+For example, if ['pamap2-separate'] is specified, since the pamap2 including three sensors, three samples are generated on time _t_.
+In contrast to that, if ['pamap2'] is specified, one sample including data of the three sensors is generated on time _t_.
+If ['pamap2-separate\_0\_2'] is specified, two samples from sensors 0 and 2 are generated on time _t_.
+If ['pamap2-separate\_with\_sep\_ids'] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
+The last channel is filled by an identical value.
+
 ## Links for the datasets
 - [Daphnet](https://doi.org/10.24432/C56K78)
 - [WISDM](https://www.cis.fordham.edu/wisdm/dataset.php)
@@ -101,7 +114,6 @@ Available Datasets specifications are
 ## How to locate the downloaded files
 
 Please see [dataset\_file\_list.txt](dataset_file_list.txt).
-
 
 # Directories
 ```

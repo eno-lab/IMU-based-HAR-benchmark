@@ -10,28 +10,26 @@ from ..utils import interp_nans, to_categorical
 class Wisdm(DataReader):
     def __init__(self, dataset):
 
-        self._cols = [
-                0,  # subjects
-                1,  # labels
-                # 2, # timestamp
-                3, 4, 5, # acc x,y,z, 10 = 1g
-            ]
-        
-        super().__init__(dataset, 'wisdm', 64, os.path.join('dataset', 'WISDM_ar_v1.1')) # 20 hz, almost 3 sec
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'wisdm', 
+                win_size = 64,  # 20 hz, almost 3 sec
+                data_cols = [
+                    0,  # subjects
+                    1,  # labels
+                    # 2, # timestamp
+                    3, 4, 5, # acc x,y,z, 10 = 1g
+                ],
+                dataset_path = os.path.join('dataset', 'WISDM_ar_v1.1'),
+                sensor_ids = [0, 0, 0]
+                )
+
+
+    def init_params_dependig_on_dataest(self):
         self._id_to_label = ['Walking', 'Jogging', 'Sitting', 'Standing', 'Upstairs', 'Downstairs']
 
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset.startswith('wisdm-losocv_'):
-            n = int(dataset[len('wisdm-losocv_'):])
-            self._split_wisdm_losocv(n)
-        elif dataset == 'wisdm':
-            self._split_wisdm()
-        else:
-            raise ValueError(f'invalid dataset name: {dataset}')
 
-
-    def _split_wisdm_losocv(self, n, label_map = None):
+    def split_losocv(self, n):
         assert 1 <= n <= 37 
 
         subjects = {}
@@ -49,10 +47,10 @@ class Wisdm(DataReader):
             i not in subjects['validation']
             )]
 
-        self._split_wisdm(subjects)
+        self.split(subjects)
 
 
-    def _split_wisdm(self, subjects = None):
+    def split(self, tr_val_ts_ids = None, label_map = None):
         ##################
         # data summary
         ##################
@@ -88,8 +86,8 @@ class Wisdm(DataReader):
         #  4 151  123   68  124    NaN  175
         #  5 125   74  144   89    NaN  133
 
-        if subjects is None:
-            subjects = {
+        if tr_val_ts_ids is None:
+            tr_val_ts_ids = {
                 'train': [i for i in range(1,27)],
                 'validation': [27, 28, 29, 30],
                 'test': [31, 32, 33, 34, 35, 36]
@@ -102,9 +100,9 @@ class Wisdm(DataReader):
         _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
         _id = self._data['id']
 
-        _f_train = np.in1d(_id, subjects['train'])
-        _f_valid = np.in1d(_id, subjects['validation'])
-        _f_test = np.in1d(_id, subjects['test'])
+        _f_train = np.in1d(_id, tr_val_ts_ids['train'])
+        _f_valid = np.in1d(_id, tr_val_ts_ids['validation'])
+        _f_test = np.in1d(_id,  tr_val_ts_ids['test'])
 
         self._X_train = _x[_f_train]
         self._y_train = _y[_f_train]
@@ -112,6 +110,8 @@ class Wisdm(DataReader):
         self._y_valid = _y[_f_valid]
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
+
+        self.handling_separate_sensor_settings()
 
 
     def read_data(self):

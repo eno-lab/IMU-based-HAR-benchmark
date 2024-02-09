@@ -20,41 +20,22 @@ class MHealth(DataReader):
             'mHealth_subject9.log',
             'mHealth_subject10.log'
         ]
-        self._cols = [ i for i in range(24) ]
-        # doubt: acc, ecg1, ecg2, acc, gyro, mag, acc, gyro, mag, label
-        # correct probably: acc, ecg1, ecg2, acc, mag, gyro, acc, mag, gyro, label
 
-        self._label_map = [
-            # (0, 'null'),
-            (1, 'Standing_still'),
-            (2, 'Sitting and relaxing'),
-            (3, 'Lying down'),
-            (4, 'Walking'),
-            (5, 'Climbing stairs'),
-            (6, 'Waist bends forwards'),
-            (7, 'Frontal elevetion of arms'),
-            (8, 'Knees bending (crouching)'),
-            (9, 'Cycling'),
-            (10, 'Jogging'),
-            (11, 'Running'),
-            (12, 'Jump front and back'),
-        ]
-        
-        super().__init__(dataset, 'm_health', 128, os.path.join('dataset', 'MHEALTHDATASET'))
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'm_health', 
+                win_size = 128, 
+                data_cols = [ i for i in range(24) ],
+                # readme seems doubt: acc, ecg1, ecg2, acc, gyro, mag, acc, gyro, mag, label
+                # correct probably: acc, ecg1, ecg2, acc, mag, gyro, acc, mag, gyro, label
+                dataset_path = os.path.join('dataset', 'MHEALTHDATASET'),
+                sensor_ids = [0,0,0, 1,1] + [i for i in range(2,4) for _ in range(3*3)]
+                )
 
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset.startswith('m_health-losocv_'):
-            n = int(dataset[len('m_health-losocv_'):])
-            self._split_losocv(n)
-        elif dataset == 'm_health':
-            self._split()
-        else:
-            raise ValueError(f'invalid dataset name: {dataset}')
 
-    def _split_losocv(self, n,limit=10):
+    def split_losocv(self, n):
         n -=1
-        assert 0 <= n < limit
+        assert 0 <= n < 10
 
         subjects = {}
         subjects['test'] = [n]
@@ -69,18 +50,36 @@ class MHealth(DataReader):
             i not in subjects['validation']
             )]
 
-        self._split(subjects, label_map=label_map)
+        self.split(subjects)
 
 
-    def _split(self, subjects = None):
-        if subjects is None:
-            subjects = {
+    def split(self, tr_val_ts_ids = None, label_map = None):
+        if tr_val_ts_ids is None:
+            tr_val_ts_ids = {
                 'train': [0, 1, 2, 3, 6, 7, 8, 9, 10],
                 'validation': [4],
                 'test': [5]
             }
 
-        self.split_data(subjects, self._label_map)
+        if label_map is None:
+            label_map = [
+                # (0, 'null'),
+                (1, 'Standing_still'),
+                (2, 'Sitting and relaxing'),
+                (3, 'Lying down'),
+                (4, 'Walking'),
+                (5, 'Climbing stairs'),
+                (6, 'Waist bends forwards'),
+                (7, 'Frontal elevetion of arms'),
+                (8, 'Knees bending (crouching)'),
+                (9, 'Cycling'),
+                (10, 'Jogging'),
+                (11, 'Running'),
+                (12, 'Jump front and back'),
+            ]
+
+
+        self.split_data(tr_val_ts_ids, label_map)
 
     def read_data(self):
         self._read_data(enumerate(self._filelist),

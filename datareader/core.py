@@ -7,7 +7,8 @@ from .utils import interp_nans, to_categorical
 
 
 class DataReader:
-    def __init__(self, dataset, dataset_origin, win_size, dataset_path=None):
+    def __init__(self, dataset, dataset_origin, win_size, data_cols,
+            dataset_path=None, sensor_ids = None):
         self.dataset = dataset
         self.dataset_origin = dataset_origin
         if dataset_path is None:
@@ -15,8 +16,8 @@ class DataReader:
         else:
             self.datapath = dataset_path
 
+        self._sensor_ids = sensor_ids
         self._id_to_label = None
-        self._sensor_ids = None
         self._X_train = None
         self._y_train = None
         self._X_valid = None
@@ -28,6 +29,10 @@ class DataReader:
         self._test = None
         self._win_size = win_size
         self._data = {'X': None, 'y': None, 'id': None}
+        self._cols = data_cols
+
+        self._separate_target_sensor_ids = None
+        self._with_separated_sensor_id = False
 
         if not dataset.startswith(self.dataset_origin):
             raise ValueError(f"Invalid dataset name: {self.dataset}")
@@ -37,6 +42,10 @@ class DataReader:
         else:
             self.read_data()
             self.save_data()
+
+        self.init_params_dependig_on_dataest()
+        if not self.parse_and_run_data_split_rule_dependig_on_dataest():
+            self.parse_and_run_data_split_rule()
 
 
     def read_data(self):
@@ -94,7 +103,7 @@ class DataReader:
         self._y_test = self.data['y'][ix_test]
 
 
-    def split_data(self, ids, label_map, x_col_filter=None, separate_targets=None, with_separate_ids=False):
+    def split_data(self, ids, label_map, x_col_filter=None):
         label_to_id = {x[0]: i for i, x in enumerate(label_map)}
         self._id_to_label = [x[1] for x in label_map]
 
@@ -118,36 +127,37 @@ class DataReader:
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
 
-        if separate_targets is not None:
-            if self._sensor_ids is None:
-                raise NotImplementedError("self._sensor_ids is still None")
+        self.handling_separate_sensor_settings()
+
+    def handling_separate_sensor_settings(self):
+        if self._separate_target_sensor_ids is not None:
             x_l = {'train': [], 'valid':[], 'test': []}
             valid_imu_ids = set(self._sensor_ids)
-            invalid_imu_ids = [i for i in separate_targets if i not in valid_imu_ids]
+            invalid_imu_ids = [ix for ix in self._separate_target_sensor_ids if ix not in valid_imu_ids]
             if len(invalid_imu_ids) != 0:
                 raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}")
 
             shapes = {}
             for mode in ('train', 'valid', 'test'):
-                for imu_id in separate_targets:
-                    v = eval(f'self._X_{mode}[:, :, np.in1d(self._sensor_ids, imu_id)]')
+                for sensor_id in self._separate_target_sensor_ids:
+                    v = eval(f'self._X_{mode}[:, :, np.in1d(self._sensor_ids, sensor_id)]')
                     if mode not in shapes:
                         shapes[mode] = v.shape
-                    elif shapes[mode][1] != v.shape[1]:  # different col num
-                        raise ValueError(f"number of columns is different on column id: {imu_id}, type: {mode}")
+                    elif shapes[mode][-1] != v.shape[-1]:  # different sensor axis num
+                        raise ValueError(f"number of columns is different on column id: {sensor_id}, type: {mode}")
                     x_l[mode].append(v)
 
             self._X_train = np.vstack(x_l['train'])
             self._X_test = np.vstack(x_l['test'])
             self._X_valid = np.vstack(x_l['valid'])
 
-            self._y_train = np.concatenate([self._y_train for _ in separate_targets], 0)
-            self._y_test= np.concatenate([self._y_test for _ in separate_targets], 0)
-            self._y_valid= np.concatenate([self._y_valid for _ in separate_targets], 0)
+            self._y_train = np.concatenate([self._y_train for _ in self._separate_target_sensor_ids], 0)
+            self._y_test= np.concatenate([self._y_test for _ in self._separate_target_sensor_ids], 0)
+            self._y_valid= np.concatenate([self._y_valid for _ in self._separate_target_sensor_ids], 0)
 
-            if with_separate_ids:
+            if self._with_separated_sensor_id:
                 def _tmp(x):
-                    _ids = np.repeat(separate_targets, x.shape[0]//len(separate_targets))[:,np.newaxis, np.newaxis]
+                    _ids = np.repeat(self._separate_target_sensor_ids, x.shape[0]//len(self._separate_target_sensor_ids))[:,np.newaxis, np.newaxis]
                     _ids = np.repeat(_ids, x.shape[1], axis=1)
                     return np.concatenate([x, _ids], -1)
 
@@ -220,13 +230,88 @@ class DataReader:
         self._data['y'] = np.asarray(labels, dtype=int)
         self._data['id'] = np.asarray(subject_ids)
 
+
+    def init_params_dependig_on_dataest(self):
+        # please implement it if necessary
+        return 
+
+
+    def parse_and_run_data_split_rule_dependig_on_dataest(self):
+        """ 
+            Please implement it if necessary.
+            If do something here (and return True), 
+            the parse_and_run_data_split_rule run next will be skipped.
+            return: do something (True) or not (False)
+        """
+        return False
+
+
+    def parse_and_run_data_split_rule(self):
+        dataset = self.dataset
+        dataset_origin = self.dataset_origin
+
+        if self.is_ratio():
+            self.split_with_ratio()
+        elif dataset.startswith(f'{dataset_origin}-losocv_'):
+            n = int(dataset[len(f'{dataset_origin}-losocv_'):])
+            self.split_losocv(n)
+        elif dataset.startswith(f'{dataset_origin}-separate'):
+            if self._sensor_ids is None:
+                raise NotImplementedError("self._sensor_ids is still None")
+
+            with_sep_ids = False
+            if dataset.endswith('_with_sep_ids'):
+                with_sep_ids = True
+                dataset = dataset[0:-len('_with_sep_ids')]
+
+            sensor_ids = sorted(list(set(self._sensor_ids)))
+            if dataset.startswith(f'{dataset_origin}-separate_'):
+                sensor_ids = [int(s) for s in dataset[len(f'{dataset_origin}-separate_'):].split("_")]
+
+            self._separate_target_sensor_ids = sensor_ids
+            self._with_separated_sensor_id = with_sep_ids
+
+            self.split()
+        elif dataset == self.dataset_origin:
+            self.split()
+        else:
+            raise ValueError(f'invalid dataset name: {dataset}')
+
+
+    def split_losocv(self, n, label_map = None):
+        raise NotImplementedError()
+
+
+    def split(self, tr_val_ts_ids = None, label_map = None):
+        """
+            tr_val_ts_ids: a dict object like 
+                {
+                    'train': [i for i in range(1,27)],
+                    'validation': [27, 28, 29, 30],
+                    'test': [31, 32, 33, 34, 35, 36]
+                }
+            label_map: a list of label and description like
+                [
+                    (1, 'Walking'),
+                    (2, 'Walking_Upstairs'),
+                    (3, 'Walking_Downstairs'),
+                    (4, 'Sitting'),
+                    (5, 'Standing'),
+                    (6, 'Laying')
+                ]
+        """ 
+        raise NotImplementedError()
+
+
     @property
     def out_loss(self):
         return 'categorical_crossentropy'
 
+
     @property
     def out_activ(self):
         return 'softmax'
+
 
     @property
     def n_classes(self):

@@ -36,25 +36,21 @@ class RealWorld(DataReader):
         self.stype_fn_map = {'acc': 'acc', 'gyr': 'Gyroscope', 'mag': 'MagneticField'}
 
         self.label_map = [(i, ac) for i, ac in enumerate(self.activities)]
-        self._cols = [ i for i in range(len(self.loc)*3*len(self.stypes) +1) ]
 
         
-        super().__init__(dataset, 'real_world', 128, os.path.join('dataset', 'realworld2016_dataset'))
-
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset.startswith('real_world-losocv_'): 
-            n = int(dataset[len('real_world-losocv_'):])
-            self._split_real_world_losocv(n)
-        elif dataset == 'real_world':
-            self._split_real_world()
-        else:
-            raise ValueError(f'invalid dataset name: {dataset}')
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'real_world', 
+                win_size = 128, 
+                dataset_path = os.path.join('dataset', 'realworld2016_dataset'),
+                data_cols = [ i for i in range(len(self.loc)*3*len(self.stypes) +1) ],
+                sensor_ids = [ i for i in range(len(self.loc)) for _ in range(3*len(self.stypes)) ]
+                )
 
 
-    def _split_real_world_losocv(self, n, limit=15):
+    def split_losocv(self, n):
         n -=1
-        assert 0 <= n < limit
+        assert 0 <= n < 15
 
         subjects = {}
         subjects['test'] = [n]
@@ -71,18 +67,18 @@ class RealWorld(DataReader):
             i not in subjects['validation']
             )]
 
-        self._split_real_world(subjects)
+        self.split(subjects)
 
 
-    def _split_real_world(self, subjects = None):
-        if subjects is None:
-            subjects = {
+    def split(self, tr_val_ts_ids = None, label_map = None):
+        if tr_val_ts_ids is None:
+            tr_val_ts_ids = {
                 'train': [i for i in range(11)],
                 'validation': [10, 11],
                 'test': [12, 13]
             }
 
-        self.split_data(subjects, self.label_map)
+        self.split_data(tr_val_ts_ids, self.label_map if label_map is None else label_map)
 
 
     def read_data(self):
