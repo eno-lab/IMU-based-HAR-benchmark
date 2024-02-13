@@ -42,6 +42,7 @@ optional arguments:
   --optuna                                                  # run optuna based parameter optimization 
   --optuna_study_suffix OPTUNA_STUDY_SUFFIX                 # study name suffix on optuna
   --optuna_num_of_trial OPTUNA_NUM_OF_TRIAL                 # num of trial of optuna
+  --downsampling_ignore_rate RATE                           # ignoring rate: 0<= rate < 1. default 0. E.g., if 0.3 is set for 100 samples, 70 samples are selected uniformly.
 
 environment variable
   CUDA_VISIBLE_DEVICES=N                                    # GPU selection. -1 disable GPU.
@@ -89,6 +90,19 @@ Available Datasets specifications are
 - [f'm_health-losocv_{i}' for i in range(1,10)]
 ```
 
+## Suffix options 
+
+### Separate sensor option
+If add the following suffix for a dataset specification, the sensors included in the dataset are handled indivisually.
+
+```-separate[_0_1_2_3...][_with_sep_ids]```
+
+For example, if ['pamap2-separate'] is specified, since the pamap2 including three sensors, three samples are generated on time _t_.
+In contrast to that, if ['pamap2'] is specified, one sample including data of the three sensors is generated on time _t_.
+If ['pamap2-separate\_0\_2'] is specified, two samples from sensors 0 and 2 are generated on time _t_.
+If ['pamap2-separate\_with\_sep\_ids'] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
+The last channel is filled by an identical value.
+
 ## Links for the datasets
 - [Daphnet](https://doi.org/10.24432/C56K78)
 - [WISDM](https://www.cis.fordham.edu/wisdm/dataset.php)
@@ -101,7 +115,6 @@ Available Datasets specifications are
 ## How to locate the downloaded files
 
 Please see [dataset\_file\_list.txt](dataset_file_list.txt).
-
 
 # Directories
 ```

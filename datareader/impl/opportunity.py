@@ -7,28 +7,6 @@ from ..core import DataReader
 
 class Opportunity(DataReader):
     def __init__(self, dataset):
-        # names are from label_legend.txt of Opportunity dataset
-        # except 0-ie Other, which is an additional label
-        self._label_map = {
-            #(0, 'Null'),
-            '406516', 'Open Door 1',
-            '406517', 'Open Door 2',
-            '404516', 'Close Door 1',
-            '404517', 'Close Door 2',
-            '406520', 'Open Fridge',
-            '404520', 'Close Fridge',
-            '406505', 'Open Dishwasher',
-            '404505', 'Close Dishwasher',
-            '406519', 'Open Drawer 1',
-            '404519', 'Close Drawer 1',
-            '406511', 'Open Drawer 2',
-            '404511', 'Close Drawer 2',
-            '406508', 'Open Drawer 3',
-            '404508', 'Close Drawer 3',
-            '408512', 'Clean Table',
-            '407521', 'Drink from Cup',
-            '405506', 'Toggle Switch'
-        }
 
         self._filelist = [
             'S1-ADL1.dat', 'S1-ADL2.dat', 'S1-ADL3.dat', 'S1-ADL4.dat', 'S1-ADL5.dat', 'S1-Drill.dat',
@@ -36,7 +14,7 @@ class Opportunity(DataReader):
             'S3-ADL1.dat', 'S3-ADL2.dat', 'S3-ADL3.dat', 'S3-ADL4.dat', 'S3-ADL5.dat', 'S3-Drill.dat',
             'S4-ADL1.dat', 'S4-ADL2.dat', 'S4-ADL3.dat', 'S4-ADL4.dat', 'S4-ADL5.dat', 'S4-Drill.dat' 
             ]
-        self._cols = [
+        data_cols = [
             #         2,  3,  4,  5,  6,  7,  8,  9,
             #10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 
             #20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
@@ -54,21 +32,23 @@ class Opportunity(DataReader):
             130, 131, 132, 133, 134,
             250]
 
-        self._cols = [x-1 for x in self._cols]
+        data_cols = [x-1 for x in data_cols]
 
-        super().__init__(dataset, 'opportunity', 32) # 1 sec, 30Hz, cut off 2% of samples 
+        sensor_ids = [i for i in range(5) for _ in range(3*3)] # jacket sensor only
+        sensor_ids.extend([-1 for _ in range(3*5+1) for _ in range(2)]) # mark -1 the others
 
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset == 'opportunity':
-            self._split_opportunity()
-        else:
-            raise ValueError(f'invalid dataset name: {dataset}')
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'opportunity', 
+                win_size = 32, # 1 sec, 30Hz, cut off 2% of samples 
+                data_cols = data_cols,
+                sensor_ids = sensor_ids
+                )
 
 
-    def _split_opportunity(self, files = None, label_map = None):
-        if files is None:
-            files = {
+    def split(self, tr_val_ts_ids = None, label_map = None):
+        if tr_val_ts_ids is None:
+            tr_val_ts_ids = {
                 'train': [     1 , 2,  3,  4,  5, 
                            6,      8,  9, 10,  
                               13,     15, 16,    
@@ -76,29 +56,33 @@ class Opportunity(DataReader):
                 'validation': [0, 14, 17, 21],
                 'test':  [7, 11, 12, 22]
             }
-        # names are from label_legend.txt of Opportunity dataset
-        # except 0-ie Other, which is an additional label
-        label_map = [
-            # (0, 'Other'),
-            (406516, 'Open Door 1'),
-            (406517, 'Open Door 2'),
-            (404516, 'Close Door 1'),
-            (404517, 'Close Door 2'),
-            (406520, 'Open Fridge'),
-            (404520, 'Close Fridge'),
-            (406505, 'Open Dishwasher'),
-            (404505, 'Close Dishwasher'),
-            (406519, 'Open Drawer 1'),
-            (404519, 'Close Drawer 1'),
-            (406511, 'Open Drawer 2'),
-            (404511, 'Close Drawer 2'),
-            (406508, 'Open Drawer 3'),
-            (404508, 'Close Drawer 3'),
-            (408512, 'Clean Table'),
-            (407521, 'Drink from Cup'),
-            (405506, 'Toggle Switch')
-        ]
-        self.split_data(files, label_map)
+
+        if label_map is None:
+            # names are from label_legend.txt of Opportunity dataset
+            # except 0-ie Other, which is an additional label
+            label_map = [
+                # (0, 'Other'),
+                (406516, 'Open Door 1'),
+                (406517, 'Open Door 2'),
+                (404516, 'Close Door 1'),
+                (404517, 'Close Door 2'),
+                (406520, 'Open Fridge'),
+                (404520, 'Close Fridge'),
+                (406505, 'Open Dishwasher'),
+                (404505, 'Close Dishwasher'),
+                (406519, 'Open Drawer 1'),
+                (404519, 'Close Drawer 1'),
+                (406511, 'Open Drawer 2'),
+                (404511, 'Close Drawer 2'),
+                (406508, 'Open Drawer 3'),
+                (404508, 'Close Drawer 3'),
+                (408512, 'Clean Table'),
+                (407521, 'Drink from Cup'),
+                (405506, 'Toggle Switch')
+            ]
+
+        self.split_data(tr_val_ts_ids, label_map)
+
 
     def read_data(self):
         self._read_data(enumerate(self._filelist),

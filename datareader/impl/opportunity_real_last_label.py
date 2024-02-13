@@ -5,7 +5,7 @@ import pandas as pd
 from ..core import DataReader
 
 
-class OpportunityReal(DataReader):
+class OpportunityRealLastLabel(DataReader):
     def __init__(self, dataset):
         # names are from label_legend.txt of Opportunity dataset
         # except 0-ie Other, which is an additional label
@@ -61,7 +61,7 @@ class OpportunityReal(DataReader):
 
         super().__init__(
                 dataset = dataset, 
-                dataset_origin = 'opportunity_real', 
+                dataset_origin = 'opportunity_real_last_label', 
                 win_size = 32, # 30Hz, almost 1 sec, cut off 2% of samples 
                 dataset_path = os.path.join('dataset', 'opportunity'),
                 data_cols = data_cols,
@@ -78,7 +78,7 @@ class OpportunityReal(DataReader):
         tasks = ["task_b2", "task_b2_no_null", "task_c", "task_c_no_null"]
         sensor_ids = None
         for task in tasks:
-            prefix = f'opportunity_real-{task}-separate'
+            prefix = f'opportunity_real_last_label-{task}-separate'
             if dataset.startswith(prefix):
                 if self._sensor_ids is None:
                     raise NotImplementedError("self._sensor_ids is still None")
@@ -89,7 +89,7 @@ class OpportunityReal(DataReader):
 
                 eval(f'self._split_opportunity_{task}()')
                 return True
-            elif dataset == f'opportunity_real-{task}':
+            elif dataset == f'opportunity_real_last_label-{task}':
                 eval(f'self._split_opportunity_{task}()')
                 return True
 
@@ -246,7 +246,8 @@ class OpportunityReal(DataReader):
 
                 seg_labels = label_df[low:high]
 
-                label = seg_labels.mode().iloc[0]
+                #label = seg_labels.mode().iloc[0]
+                label = seg_labels.to_numpy()[-1]
                 #print(f"{len(seg_labels)=}:{label}")
                 seg = df.iloc[low:high,:]
                 if seg.isna().any(axis=None):
