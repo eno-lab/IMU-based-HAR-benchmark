@@ -3,7 +3,10 @@
 # FROM tensorflow/tensorflow:latest
 
 # tensorflow use GPU
-# "docker run" requires "--gpus" option 
+# NOTE: 
+#   Two requirements to enable GPU in containers.
+#   1. GPU drivers and CUDA are installed on the host OS.
+#   2. Use "--gpus" option with "docker run".
 FROM tensorflow/tensorflow:latest-gpu 
 
 # copy python requirements.txt file
