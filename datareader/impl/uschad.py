@@ -7,13 +7,13 @@ from ..core import DataReader
 
 class Uschad(DataReader):
     def __init__(self, dataset):
+        self._win_stride = 100  # 100 hz, 1 sec
         super().__init__(
                 dataset = dataset, 
                 dataset_origin = 'uschad',
                 win_size = 200,  # 100 hz, 2 sec
                 data_cols = None,
                 sensor_ids = [0 for _ in range(6)])
-        self._win_stride = 100  # 100 hz, 1 sec
 
     def split(self, tr_val_ts_ids = None, label_map = None):
         if tr_val_ts_ids is None:
@@ -73,6 +73,6 @@ class Uschad(DataReader):
                         id.append(data_dict['subject'][0])
 
         self._data = {}
-        self._data['X'] = x
-        self._data['y'] = y
-        self._data['id'] = id
+        self._data['X'] = np.array(x)
+        self._data['y'] = np.array(y, dtype=int)
+        self._data['id'] = np.array(id, dtype=int)
