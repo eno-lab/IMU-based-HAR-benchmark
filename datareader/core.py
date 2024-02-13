@@ -3,6 +3,7 @@ import re
 
 import h5py
 import numpy as np
+import pandas as pd
 from .utils import interp_nans, to_categorical
 
 
@@ -117,51 +118,73 @@ class DataReader:
         self._X_test = _x[_f_test]
         self._y_test = _y[_f_test]
 
-
-    def _read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10, null_label=0):
+    def _read_data(self,
+                   loop_elements,
+                   read_file_func,
+                   label_col=-1,
+                   file_sep=" ",
+                   x_magnif=1,
+                   interpolate_limit=10,
+                   null_label=0,
+                   exist_sensor_col=False):
         """
 
         Args:
             loop_elements: used as 'for id, filename in loop_elements'
-            read_file_func: 
+            read_file_func:
                 args: filename
                 return: pandas.DataFrame
-            label_col: -1 or 1, default -1
-        """ 
+            label_col: -1 or 0, default -1
+            exist_sensor_col: True or False, default False
+                If True, sensor_col is -2 when label_col is -1 or 1 when label_col is 0.
+        """
         data = []
         seg = []
         subject_ids = []
+        sensor_ids = []
         labels = []
         label = None
 
         for i, filename in loop_elements:
-            df = read_file_func(filename)
-            df = df.iloc[:,self._cols]
+            df: pd.DataFrame = read_file_func(filename)
+            df = df.iloc[:, self._cols]
             label_df = df.iloc[:, label_col].astype(int)
 
-            if label_col == -1:
-                df = df.iloc[:, :-1].astype(float)
-            elif label_col == 0:
-                df = df.iloc[:, 1::].astype(float)
+            if exist_sensor_col:
+                if label_col == -1:
+                    sensor_df = df.iloc[:, -2].astype(int)
+                    df = df.iloc[:, :-2].astype(float)
+                elif label_col == 0:
+                    sensor_df = df.iloc[:, 1].astype(int)
+                    df = df.iloc[:, 2::].astype(float)
+            else:
+                sensor_df = pd.Series(np.zeros(df.shape[0])).astype(int)
+                if label_col == -1:
+                    df = df.iloc[:, :-1].astype(float)
+                elif label_col == 0:
+                    df = df.iloc[:, 1::].astype(float)
 
-            
-            df.interpolate(inplace=True, limit=interpolate_limit) # 13/64 hz = 0.2Hz
+            df.interpolate(inplace=True,
+                           limit=interpolate_limit)  # 13/64 hz = 0.2Hz
             if x_magnif != 1:
                 df *= x_magnif
 
+            sensor = sensor_df.iat[0]
             for ix, cur_label in enumerate(label_df):
+                cur_sensor = sensor_df.iat[ix]
                 if cur_label == null_label:
                     label = None
                     seg = []
                     continue
 
                 if label is not None:
-                    if label != cur_label: # change label
+                    if label != cur_label or sensor != cur_sensor:  # change label
                         seg = []
                         label = cur_label
                 else:
                     label = cur_label
 
+                sensor = sensor_df.iat[ix]
                 seg.append(ix)
 
                 if len(seg) == self._win_size:
@@ -174,6 +197,7 @@ class DataReader:
                     data.append(_sdf)
                     labels.append(label)
                     subject_ids.append(i)
+                    sensor_ids.append(sensor)
 
                     seg = seg[int(len(seg)//2):] # stride = win_size/2
 
