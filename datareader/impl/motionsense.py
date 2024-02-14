@@ -12,7 +12,6 @@ class Motionsense(DataReader):
                 dataset_origin = 'motionsense',
                 win_size = 128,  # 50 hz, 2.56 sec
                 data_cols = list(range(12)), # attitude_roll-pitch-yaw + gravity_xyz + gyro_xyz + acc_xyz
-                dataset_path = os.path.join('datset', 'MotionSense'),
                 sensor_ids = [0 for _ in range(12)])
 
     def split_losocv(self, n):
