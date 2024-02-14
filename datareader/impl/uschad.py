@@ -18,6 +18,25 @@ class Uschad(DataReader):
                 sensor_ids = [0 for _ in range(6)])
 
 
+    def split_losocv(self, n):
+        assert 1 <= n <= 14
+        subject_list = [i for i in range(1, 15)] 
+
+        subjects = {}
+        subjects['test'] = [n]
+
+        if n == 3:
+            subjects['validation'] = [2, 4]
+        elif n == 4:
+            subjects['validation'] = [2, 3]
+        else:
+            subjects['validation'] = [3, 4]
+
+        subjects['train'] = [ s for s in subject_list if s not in subjects['test'] and s not in subjects['validation'] ]
+
+        self.split(subjects)
+
+
     def split(self, tr_val_ts_ids = None, label_map = None):
         if tr_val_ts_ids is None:
             tr_val_ts_ids = {
