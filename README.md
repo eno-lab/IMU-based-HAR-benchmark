@@ -84,10 +84,12 @@ Available Datasets specifications are
 - ['ucihar']                                        # the same as ['ucihar-orig']
 - [f'ucihar-losocv_{i}' for i in range(1, 31)]     
 - ['ucihar-ispl']                                   # iSPL based split
-- ['real_world'], 
+- ['real_world'] 
 - [f'real_world-losocv_{i}' for i in range(1,16)]
-- ['m_health'], 
+- ['m_health'] 
 - [f'm_health-losocv_{i}' for i in range(1,10)]
+- ['mighar']                                        # memory should be >= 64 GiB. 128 GiB is recommended. 
+- ['uschad']                                        
 ```
 
 ## Suffix options 
@@ -125,6 +127,8 @@ This extra values should be removed at input mapping phases of DNN.
 - [UCIHAR](https://doi.org/10.24432/C54S4K)
 - [RealWorld](https://www.uni-mannheim.de/dws/research/projects/activity-recognition/dataset/dataset-realworld)
 - [mHealth](https://doi.org/10.24432/C5TW22)
+- [MIG-HAR](https://github.com/eno-lab/Meshed_IMU_Garment_HAR_Dataset)
+- [USC-HAD](https://sipi.usc.edu/had/)
 
 ## How to locate the downloaded files
 
