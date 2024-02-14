@@ -21,7 +21,6 @@ class Uschad(DataReader):
     def split_losocv(self, n):
         assert 1 <= n <= 14
         subject_list = [i for i in range(1, 15)] 
-        n -= 1
 
         subjects = {}
         subjects['test'] = [n]
