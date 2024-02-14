@@ -42,8 +42,8 @@ class Mighar(DataReader):
 
 
     def init_params_dependig_on_dataest(self):
-        if self.dataset.startswith('{self.dataset_origin}-axis_sync'):
-            self.dataset_origin = '{self.dataset_origin}-axis_sync'
+        if self.dataset.startswith('{self.dataset_origin}-offset_calib'):
+            self.dataset_origin = '{self.dataset_origin}-offset_calib'
             self._file_prefix = 'data'
 
 
