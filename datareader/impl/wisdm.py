@@ -27,6 +27,7 @@ class Wisdm(DataReader):
 
     def init_params_dependig_on_dataest(self):
         self._id_to_label = ['Walking', 'Jogging', 'Sitting', 'Standing', 'Upstairs', 'Downstairs']
+        self._label_map = [(i, label) for i, label in enumerate(self._id_to_label)]
 
 
     def split_losocv(self, n):
@@ -93,25 +94,7 @@ class Wisdm(DataReader):
                 'test': [31, 32, 33, 34, 35, 36]
             }
 
-        label_to_id = {label: i for i, label in enumerate(self._id_to_label)}
-
-        _x = self._data['X']
-        _y = self._data['y']
-        _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
-        _id = self._data['id']
-
-        _f_train = np.in1d(_id, tr_val_ts_ids['train'])
-        _f_valid = np.in1d(_id, tr_val_ts_ids['validation'])
-        _f_test = np.in1d(_id,  tr_val_ts_ids['test'])
-
-        self._X_train = _x[_f_train]
-        self._y_train = _y[_f_train]
-        self._X_valid = _x[_f_valid]
-        self._y_valid = _y[_f_valid]
-        self._X_test = _x[_f_test]
-        self._y_test = _y[_f_test]
-
-        self.handling_separate_sensor_settings()
+        self.split_data(tr_val_ts_ids, self._label_map)
 
 
     def read_data(self):
@@ -147,7 +130,7 @@ class Wisdm(DataReader):
 
         self._id_to_label = ['Walking', 'Jogging', 'Sitting', 'Standing', 'Upstairs', 'Downstairs']
         label_to_id = {label: i for i, label in enumerate(self._id_to_label)}
-        _labels= [label_to_id[l] for l in _labels]
+        _labels = [label_to_id[l] for l in _labels]
 
         data = []
         seg = []
