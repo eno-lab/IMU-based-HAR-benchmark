@@ -62,8 +62,10 @@ class Uschad(DataReader):
                     full_signals = data_dict['sensor_readings']
 
                     # Apply a window function to obtain fixed length data.
-                    for window_begin in range(0, len(full_signals) - self._win_size, self._win_stride):
+                    for window_begin in range(0, len(full_signals), self._win_stride):
                         window_end = window_begin + self._win_size
+                        if(window_end > len(full_signals)):
+                            break
                         fixed_length_signals = full_signals[window_begin:window_end]
 
                         # save fixed length signals and tags.
