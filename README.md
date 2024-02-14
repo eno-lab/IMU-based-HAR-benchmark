@@ -63,13 +63,9 @@ DATASETS is handled via 'eval'.
 Available Datasets specifications are
 ```
 - ['daphnet'], 
-- [f'daphnet-losocv_{i}' for i in range(1,11)]
 - ['wisdm']
-- [f'wisdm-losocv_{i}' for i in range(1, 37)]
 - ['pamap2']                                        
 - ['pamap2-with_rj']                                # include the label 24: rope jumping that is optional activity
-- [f'pamap2-losocv_{i}' for i in range(1, 9)]       # subject 9 include the label 24 only, so ignored
-- [f'pamap2-full-losocv_{i}' for i in range(1, 10)] 
 - ['opportunity']                                   # iSPL based train/test set split
 - ['opportunity_real']                              # iSPL based train/test set split, include Null, split ignoring label boundary 
 - ['opportunity_real-task_b2']                      # task b2 of opportunity challenge, include Null, split ignoring label boundary, exclude 12 ACCs.
@@ -82,13 +78,11 @@ Available Datasets specifications are
 - ['opportunity_real_last_label_c']                 # select the last label of segments instead of 'mode' value. 
 - ['opportunity_real_last_label_c_no_null']         # select the last label of segments instead of 'mode' value. 
 - ['ucihar']                                        # the same as ['ucihar-orig']
-- [f'ucihar-losocv_{i}' for i in range(1, 31)]     
 - ['ucihar-ispl']                                   # iSPL based split
 - ['real_world'] 
-- [f'real_world-losocv_{i}' for i in range(1,16)]
 - ['m_health'] 
-- [f'm_health-losocv_{i}' for i in range(1,10)]
 - ['mighar']                                        # memory should be >= 64 GiB. 128 GiB is recommended. 
+- ['mighar-offset_calib']                           # Using Offset calibrated data instead of raw data.
 - ['uschad']                                        
 ```
 
@@ -101,10 +95,10 @@ If add the following suffix for a dataset specification, the sensors included in
 
 ```-separation[_0_1_2_3...][_with_sid]```
 
-For example, if ['pamap2-separation'] is specified, since the pamap2 including three sensors, three samples are generated on time _t_.
-In contrast to that, if ['pamap2'] is specified, one sample including data of the three sensors is generated on time _t_.
-If ['pamap2-separation\_0\_2'] is specified, two samples from sensors 0 and 2 are generated on time _t_.
-If ['pamap2-separation\_with\_id'] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
+For example, if \['pamap2-separation'\] is specified, since the pamap2 including three sensors, three samples are generated on time _t_.
+In contrast to that, if \['pamap2'\] is specified, one sample including data of the three sensors is generated on time _t_.
+If \['pamap2-separation\_0\_2'\] is specified, two samples from sensors 0 and 2 are generated on time _t_.
+If \['pamap2-separation\_with\_id'\] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
 The last channel is filled by an identical value.
 This extra values should be removed at input mapping phases of DNN.
 
@@ -113,11 +107,21 @@ If add the following suffix for a dataset specification, samples generated for t
 
 ```-combination_0_1_2_3...[_with_sid]```
 
-For example, if ['pamap2-combination\_0\_2'] is specified, since the pamap2 including three sensors, generated sampels are consists of the values from these two specified sensors.
-If ['pamap2--combination\_0\_2\_with\_id'] is specified, each sample has sensor ID values, such as 0 and 2, for each axis.
+For example, if \['pamap2-combination\_0\_2'\] is specified, since the pamap2 including three sensors, generated sampels are consists of the values from these two specified sensors.
+If \['pamap2--combination\_0\_2\_with\_id'\] is specified, each sample has sensor ID values, such as 0 and 2, for each axis.
 The sensor IDs are placed on a extra entry of window. For example, if the data has a shape [100, 256, 6], meaning 100 samples with 256 window length with 6 channels, the shape will be changed for [100, 25*7*, 6]. 
-The extra entries placed on [:, 256, :] have sensor ID values. For example, [0, 0, 0, 2, 2, 2]. 
+The extra entries placed on \[:, 256, :\] have sensor ID values. For example, \[0, 0, 0, 2, 2, 2\]. 
 This extra values should be removed at input mapping phases of DNN.
+
+### Leave one subject out cross-validation (LOSOCV) option
+
+```-losocv_n```
+
+For example, if \['pamap2-losocv_1'\] is specified, the data of subject 1 is used for test data.
+The following sort is suitable to run LOSOCV, \[f'pamap2-losocv_{i}' for i in range(1, 10)\].
+
+Several DataReaders do not support this LOSOCV option, such as the DataReader for the Opportunity. 
+
 
 ## Links for the datasets
 - [Daphnet](https://doi.org/10.24432/C56K78)
