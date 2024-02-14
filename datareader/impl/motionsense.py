@@ -15,6 +15,21 @@ class Motionsense(DataReader):
                 dataset_path = os.path.join('datset', 'MotionSense'),
                 sensor_ids = [0 for _ in range(12)])
 
+    def split_losocv(self, n):
+        assert 1 <= n <= 24
+        subject_list = [i for i in range(1, 25)]
+
+        subjects = {}
+        subjects['test'] = [n]
+
+        if 4 <= n <= 6:
+            subjects['validation'] = [3] + [s for s in list(range(4, 7)) if s is not n]
+        else:
+            subjects['validation'] = [4, 5, 6]
+
+        subjects['train'] = [ s for s in subject_list if s not in subjects['test'] and s not in subjects['validation'] ]
+        self.split(subjects)
+
     def split(self, tr_val_ts_ids = None, label_map = None):
         if tr_val_ts_ids is None:
             tr_val_ts_ids = {
