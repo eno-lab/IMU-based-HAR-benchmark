@@ -6,11 +6,11 @@ import pandas as pd
 from ..core import DataReader
 
 
-class Motionsense(DataReader):
+class MotionSense(DataReader):
     def __init__(self, dataset):
         super().__init__(
                 dataset = dataset, 
-                dataset_origin = 'motionsense',
+                dataset_origin = 'motion_sense',
                 win_size = 128,  # 50 hz, 2.56 sec
                 data_cols = list(range(12)), # attitude_roll-pitch-yaw + gravity_xyz + gyro_xyz + acc_xyz
                 dataset_path = os.path.join('dataset', 'motion-sense'),
