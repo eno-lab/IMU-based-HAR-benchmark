@@ -102,7 +102,7 @@ class Motionsense(DataReader):
                 'userAcceleration.z'
             ]
 
-            df = pd.read_csv(os.path.join(self.datapath, filename), sep=" ", header=None)
+            df = pd.read_csv(os.path.join(self.datapath, filename), sep=",")
             signals = df[signals_keys]
 
             return signals
@@ -127,6 +127,5 @@ class Motionsense(DataReader):
 
         self._read_data(
             zip(user_ids, filepaths, act_labels),
-            read_data,
-            label_col = -1,
+            read_data
         )
