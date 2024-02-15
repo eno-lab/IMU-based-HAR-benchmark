@@ -99,7 +99,7 @@ If add the following suffix for a dataset specification, the sensors included in
 For example, if \['pamap2-separation'\] is specified, since the pamap2 including three sensors, three samples are generated on time _t_.
 In contrast to that, if \['pamap2'\] is specified, one sample including data of the three sensors is generated on time _t_.
 If \['pamap2-separation\_0\_2'\] is specified, two samples from sensors 0 and 2 are generated on time _t_.
-If \['pamap2-separation\_with\_uid'\] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
+If \['pamap2-separation\_with\_sid'\] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
 The last channel is filled by an identical value.
 This extra values should be removed at input mapping phases of DNN.
 
@@ -109,7 +109,7 @@ If add the following suffix for a dataset specification, samples generated for t
 ```-combination_0_1_2_3...[_with_sid]```
 
 For example, if \['pamap2-combination\_0\_2'\] is specified, since the pamap2 including three sensors, generated sampels are consists of the values from these two specified sensors.
-If \['pamap2--combination\_0\_2\_with\_uid'\] is specified, each sample has sensor ID values, such as 0 and 2, for each axis.
+If \['pamap2--combination\_0\_2\_with\_sid'\] is specified, each sample has sensor ID values, such as 0 and 2, for each axis.
 The sensor IDs are placed on a extra entry of window. For example, if the data has a shape [100, 256, 6], meaning 100 samples with 256 window length with 6 channels, the shape will be changed for [100, 25*7*, 6]. 
 The extra entries placed on \[:, 256, :\] have sensor ID values. For example, \[0, 0, 0, 2, 2, 2\]. 
 This extra values should be removed at input mapping phases of DNN.
