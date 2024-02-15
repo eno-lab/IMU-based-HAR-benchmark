@@ -52,14 +52,6 @@ class Motionsense(DataReader):
 
     def read_data(self):
 
-        # decompress data folder
-        datafolder_path = os.path.join(self.datapath, 'data', 'A_DeviceMotion_data')
-        datafolser_zip_path = os.path.join(self.datapath, 'data', 'A_DeviceMotion_data.zip')
-
-        if(not os.path.exists(datafolder_path)):
-            f = zipfile.ZipFile(datafolser_zip_path)
-            f.extractall(datafolder_path)
-
         act_folders = [
             'dws_1',
             'dws_2',
@@ -86,6 +78,9 @@ class Motionsense(DataReader):
             'sit' : 6
         }
 
+        datafolder_zip_path = os.path.join(self.datapath, 'data', 'A_DeviceMotion_data.zip')
+        datafolder_zip = zipfile.ZipFile(datafolder_zip_path, 'w')
+
         def read_data(filename):
             signals_keys = [
                 'attitude.roll',
@@ -102,7 +97,7 @@ class Motionsense(DataReader):
                 'userAcceleration.z'
             ]
 
-            df = pd.read_csv(os.path.join(self.datapath, filename), sep=",")
+            df = pd.read_csv(datafolder_zip.open(filename), sep=",")
             signals = df[signals_keys]
 
             return signals
@@ -116,8 +111,7 @@ class Motionsense(DataReader):
             act_id = act_name_to_id[act_name]
 
             for subject in range(1, 25):
-                filename = os.path.join('data',
-                                        'A_DeviceMotion_data',
+                filename = os.path.join('A_DeviceMotion_data',
                                         act_folder,
                                         f'sub_{subject}.csv')
                 
