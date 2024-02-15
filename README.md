@@ -136,9 +136,11 @@ Several DataReaders do not support this LOSOCV option, such as the DataReader fo
 - [USC-HAD](https://sipi.usc.edu/had/)
 - [MotionSense](https://github.com/mmalekzadeh/motion-sense)
 
-## How to locate the downloaded files
+## How to locate the downloaded dataset files
 
-Please see [dataset\_file\_list.txt](dataset_file_list.txt).
+Please put downloaded or decompressed datasets into the dataset directory as is, such as via drag and drop.
+The expected file paths are listed in [dataset\_file\_list.txt](dataset_file_list.txt).
+Please see this to check how to locate downloaded dataset files.
 
 # Directories
 ```
