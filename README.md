@@ -123,6 +123,8 @@ The following sort is suitable to run LOSOCV, \[f'pamap2-losocv_{i}' for i in ra
 
 Several DataReaders do not support this LOSOCV option, such as the DataReader for the Opportunity. 
 
+### Note
+The combination and separation sensor options can be used to select a single sensor from many. E.g., \['pamap2-separation\_0'\] and \['pamap2-combination\_0'\].
 
 ## Links for the datasets
 - [Daphnet](https://doi.org/10.24432/C56K78)
