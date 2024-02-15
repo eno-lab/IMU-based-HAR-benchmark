@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import zipfile
 import pandas as pd
 from ..core import DataReader
 
@@ -12,6 +13,7 @@ class Motionsense(DataReader):
                 dataset_origin = 'motionsense',
                 win_size = 128,  # 50 hz, 2.56 sec
                 data_cols = list(range(12)), # attitude_roll-pitch-yaw + gravity_xyz + gyro_xyz + acc_xyz
+                dataset_path = os.path.join('dataset', 'motion-sense'),
                 sensor_ids = [0 for _ in range(12)])
 
     def split_losocv(self, n):
@@ -49,6 +51,14 @@ class Motionsense(DataReader):
         self.split_data(tr_val_ts_ids, label_map)
 
     def read_data(self):
+
+        # decompress data folder
+        datafolder_path = os.path.join(self.datapath, 'data', 'A_DeviceMotion_data')
+        datafolser_zip_path = os.path.join(self.datapath, 'data', 'A_DeviceMotion_data.zip')
+
+        if(not os.path.exists(datafolder_path)):
+            f = zipfile.ZipFile(datafolser_zip_path)
+            f.extractall(datafolder_path)
 
         act_folders = [
             'dws_1',
@@ -106,7 +116,8 @@ class Motionsense(DataReader):
             act_id = act_name_to_id[act_name]
 
             for subject in range(1, 25):
-                filename = os.path.join('A_DeviceMotion_data',
+                filename = os.path.join('data',
+                                        'A_DeviceMotion_data',
                                         act_folder,
                                         f'sub_{subject}.csv')
                 
