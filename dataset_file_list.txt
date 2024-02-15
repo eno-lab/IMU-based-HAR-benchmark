@@ -3804,3 +3804,9 @@ dataset/Meshed_IMU_Garment_HAR_Dataset/data/subject9/writing/rawdata2.csv.gz
 dataset/Meshed_IMU_Garment_HAR_Dataset/data/subject9/writing/rawdata1.csv.gz
 dataset/Meshed_IMU_Garment_HAR_Dataset/data/subject9/writing/data1.csv.gz
 dataset/Meshed_IMU_Garment_HAR_Dataset/DS-000189-ICM-20948-v1.3.pdf
+dataset/motion-sense
+dataset/motion-sense/data
+dataset/motion-sense/data/A_DeviceMotion_data.zip
+dataset/motion-sense/data/B_Accelerometer_data.zip
+dataset/motion-sense/data/C_Gyroscope_data.zip
+dataset/motion-sense/data/data_subjects_info.csv

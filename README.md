@@ -84,6 +84,7 @@ Available Datasets specifications are
 - ['mighar']                                        # memory should be >= 64 GiB. 128 GiB is recommended. 
 - ['mighar-offset_calib']                           # Using Offset calibrated data instead of raw data.
 - ['uschad']                                        
+- ['motion_sense']                                  
 ```
 
 ## Suffix options 
@@ -133,6 +134,7 @@ Several DataReaders do not support this LOSOCV option, such as the DataReader fo
 - [mHealth](https://doi.org/10.24432/C5TW22)
 - [MIG-HAR](https://github.com/eno-lab/Meshed_IMU_Garment_HAR_Dataset)
 - [USC-HAD](https://sipi.usc.edu/had/)
+- [MotionSense](https://github.com/mmalekzadeh/motion-sense)
 
 ## How to locate the downloaded files
 
