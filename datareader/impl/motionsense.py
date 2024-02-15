@@ -79,7 +79,7 @@ class Motionsense(DataReader):
         }
 
         datafolder_zip_path = os.path.join(self.datapath, 'data', 'A_DeviceMotion_data.zip')
-        datafolder_zip = zipfile.ZipFile(datafolder_zip_path, 'w')
+        datafolder_zip = zipfile.ZipFile(datafolder_zip_path, 'r')
 
         def read_data(filename):
             signals_keys = [
