@@ -3833,4 +3833,16 @@ dataset/motion-sense/tutorial/ReadMe.md
 dataset/motion-sense/tutorial/_best_FCN_.hdf5
 dataset/motion-sense/tutorial/_best_gen_FCN_.hdf5
 dataset/motion-sense/tutorial/_RAE_model.hdf5
-
+dataset/Activity_Recognition_Dataset
+dataset/Activity_Recognition_Dataset/Dataset
+dataset/Activity_Recognition_Dataset/Dataset/Participant_1.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_10.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_2.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_3.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_4.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_5.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_6.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_7.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_8.csv
+dataset/Activity_Recognition_Dataset/Dataset/Participant_9.csv
+dataset/Activity_Recognition_Dataset/Dataset/Readme.txt
