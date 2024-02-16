@@ -1,8 +1,10 @@
 import os
 import re
+import gc
 
 import h5py
 import numpy as np
+import pandas as pd
 from .utils import interp_nans, to_categorical
 
 
@@ -31,8 +33,11 @@ class DataReader:
         self._data = {'X': None, 'y': None, 'id': None}
         self._cols = data_cols
 
-        self._separate_target_sensor_ids = None
-        self._with_separated_sensor_id = False
+        self._with_sid = False
+        self._separation_target_sensor_ids = None
+        self._combination_target_sensor_ids = None
+
+        self.init_params_dependig_on_dataest()
 
         if not dataset.startswith(self.dataset_origin):
             raise ValueError(f"Invalid dataset name: {self.dataset}")
@@ -43,7 +48,6 @@ class DataReader:
             self.read_data()
             self.save_data()
 
-        self.init_params_dependig_on_dataest()
         if not self.parse_and_run_data_split_rule_dependig_on_dataest():
             self.parse_and_run_data_split_rule()
 
@@ -107,39 +111,74 @@ class DataReader:
         label_to_id = {x[0]: i for i, x in enumerate(label_map)}
         self._id_to_label = [x[1] for x in label_map]
 
-        _filter = np.in1d(self._data['y'], list(label_to_id.keys()))
-        _x = self._data['X'][_filter]
-        _id = self._data['id'][_filter]
-        _y = [label_to_id[y] for y in self._data['y'][_filter]]
+        _label_filter = np.in1d(self._data['y'], list(label_to_id.keys()))
+
+        _y = [label_to_id[y] for y in self._data['y'][_label_filter]] # copy, but small
         _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
 
-        if x_col_filter is not None:
-            _x = _x[:,:,x_col_filter]
-
+        _id = self._data['id'][_label_filter] # copy, but small
         _f_train = np.in1d(_id, ids['train'])
         _f_valid = np.in1d(_id, ids['validation'])
         _f_test = np.in1d(_id, ids['test'])
 
-        self._X_train = _x[_f_train]
-        self._y_train = _y[_f_train]
-        self._X_valid = _x[_f_valid]
-        self._y_valid = _y[_f_valid]
-        self._X_test = _x[_f_test]
-        self._y_test = _y[_f_test]
+        # these big copies sometime are caused for memory size issues
+        if x_col_filter is not None:
+            self._X_train = self._data['X'][np.logical_and(_label_filter, _f_train),:,x_col_filter] # copy
+            self._X_valid = self._data['X'][np.logical_and(_label_filter, _f_valid),:,x_col_filter] # copy
+            self._X_test = self._data['X'][np.logical_and(_label_filter, _f_test),:,x_col_filter] # copy
+        else:
+            self._X_train = self._data['X'][np.logical_and(_label_filter, _f_train)] # copy
+            self._X_valid = self._data['X'][np.logical_and(_label_filter, _f_valid)] # copy
+            self._X_test = self._data['X'][np.logical_and(_label_filter, _f_test)] # copy
 
-        self.handling_separate_sensor_settings()
+        self._y_train = _y[_f_train] # copy, but small
+        self._y_valid = _y[_f_valid] # copy, but small
+        self._y_test = _y[_f_test] # copy, but small
 
-    def handling_separate_sensor_settings(self):
-        if self._separate_target_sensor_ids is not None:
+        self.handling_separation_sensor_settings()
+        self.handling_combination_sensor_settings()
+
+
+    def handling_combination_sensor_settings(self):
+        if self._combination_target_sensor_ids is not None:
+            valid_imu_ids = set(self._sensor_ids)
+            invalid_imu_ids = [ix for ix in self._combination_target_sensor_ids if ix not in valid_imu_ids]
+            if len(invalid_imu_ids) != 0:
+                raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}")
+
+            _filter = np.in1d(self._sensor_ids, self._combination_target_sensor_ids)
+            self._X_train = self._X_train[:,:,_filter]
+            self._X_valid = self._X_valid[:,:,_filter]
+            self._X_test = self._X_test[:,:,_filter]
+
+            gc.collect()
+
+            if self._with_sid:
+                _ids = np.asarray(self._sensor_ids, dtype=self._X_train.dtype)[_filter][np.newaxis, np.newaxis, :]
+                
+                def _tmp(x):
+                    __ids = np.repeat(_ids, x.shape[0], axis=0)
+                    return np.concatenate([x, __ids], axis=1)
+
+                self._X_train = _tmp(self._X_train)
+                gc.collect()
+                self._X_test = _tmp(self._X_test)
+                gc.collect()
+                self._X_valid = _tmp(self._X_valid)
+                gc.collect()
+
+
+    def handling_separation_sensor_settings(self):
+        if self._separation_target_sensor_ids is not None:
             x_l = {'train': [], 'valid':[], 'test': []}
             valid_imu_ids = set(self._sensor_ids)
-            invalid_imu_ids = [ix for ix in self._separate_target_sensor_ids if ix not in valid_imu_ids]
+            invalid_imu_ids = [ix for ix in self._separation_target_sensor_ids if ix not in valid_imu_ids]
             if len(invalid_imu_ids) != 0:
                 raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}")
 
             shapes = {}
             for mode in ('train', 'valid', 'test'):
-                for sensor_id in self._separate_target_sensor_ids:
+                for sensor_id in self._separation_target_sensor_ids:
                     v = eval(f'self._X_{mode}[:, :, np.in1d(self._sensor_ids, sensor_id)]')
                     if mode not in shapes:
                         shapes[mode] = v.shape
@@ -151,29 +190,45 @@ class DataReader:
             self._X_test = np.vstack(x_l['test'])
             self._X_valid = np.vstack(x_l['valid'])
 
-            self._y_train = np.concatenate([self._y_train for _ in self._separate_target_sensor_ids], 0)
-            self._y_test= np.concatenate([self._y_test for _ in self._separate_target_sensor_ids], 0)
-            self._y_valid= np.concatenate([self._y_valid for _ in self._separate_target_sensor_ids], 0)
+            self._y_train = np.concatenate([self._y_train for _ in self._separation_target_sensor_ids], 0)
+            self._y_test= np.concatenate([self._y_test for _ in self._separation_target_sensor_ids], 0)
+            self._y_valid= np.concatenate([self._y_valid for _ in self._separation_target_sensor_ids], 0)
 
-            if self._with_separated_sensor_id:
+            if self._with_sid:
                 def _tmp(x):
-                    _ids = np.repeat(self._separate_target_sensor_ids, x.shape[0]//len(self._separate_target_sensor_ids))[:,np.newaxis, np.newaxis]
+                    _ids = np.repeat(self._separation_target_sensor_ids, x.shape[0]//len(self._separation_target_sensor_ids))[:,np.newaxis, np.newaxis]
                     _ids = np.repeat(_ids, x.shape[1], axis=1)
                     return np.concatenate([x, _ids], -1)
 
                 self._X_train = _tmp(self._X_train)
+                gc.collect()
                 self._X_test = _tmp(self._X_test)
+                gc.collect()
                 self._X_valid = _tmp(self._X_valid)
+                gc.collect()
 
 
-    def _read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10, null_label=0):
+    def _read_data(self, loop_elements, read_file_func, label_col=-1, file_sep=" ", x_magnif=1, interpolate_limit=10, null_label=0, dtype='float64'):
         """
 
         Args:
-            loop_elements: used as 'for id, filename in loop_elements'
+            loop_elements: 
+                used as 
+                '''
+                    for elem in loop_elements:
+                        if len(elem) == 2:
+                            user_id, filename = elem
+                        elif len(elem) == 3:
+                            user_id, filename, label_id = elem
+                '''
+
+                If the label_id is provided, identical label_id is used for all samples collected from the related file.
+                If the label_id is not provided, a mode value of label_col is used for each samples.
+
             read_file_func: 
                 args: filename
                 return: pandas.DataFrame
+
             label_col: -1 or 1, default -1
         """ 
         data = []
@@ -182,21 +237,34 @@ class DataReader:
         labels = []
         label = None
 
-        for i, filename in loop_elements:
-            df = read_file_func(filename)
-            df = df.iloc[:,self._cols]
-            label_df = df.iloc[:, label_col].astype(int)
+        for elem in loop_elements:
+            file_label = None
+            if len(elem) == 2:
+                i, filename = elem
+            elif len(elem) == 3:
+                i, filename, file_label = elem
 
-            if label_col == -1:
-                df = df.iloc[:, :-1].astype(float)
-            elif label_col == 0:
-                df = df.iloc[:, 1::].astype(float)
+            print(filename)
+            df: pd.DataFrame = read_file_func(filename)
+            df = df.iloc[:,self._cols]
+
+            if file_label is not None:
+                label_df = [file_label for _ in range(df.shape[0])]
+            else:
+                label_df = df.iloc[:, label_col].astype(int)
+
+                if label_col == -1:
+                    df = df.iloc[:, :-1].astype(dtype)
+                elif label_col == 0:
+                    #df = df.iloc[:, 1::].astype(float)
+                    df = df.iloc[:, 1::].astype(dtype)
 
             
             df.interpolate(inplace=True, limit=interpolate_limit) # 13/64 hz = 0.2Hz
             if x_magnif != 1:
                 df *= x_magnif
 
+            seg = []
             for ix, cur_label in enumerate(label_df):
                 if cur_label == null_label:
                     label = None
@@ -225,15 +293,20 @@ class DataReader:
 
                     seg = seg[int(len(seg)//2):] # stride = win_size/2
 
+            # safe net for big dataset
+            gc.collect()
+
         self._data = {}
-        self._data['X'] = np.asarray(data)
+        self._data['X'] = np.asarray(data, dtype=dtype)
+        # safe net for big dataset
+        gc.collect()
         self._data['y'] = np.asarray(labels, dtype=int)
         self._data['id'] = np.asarray(subject_ids)
 
 
     def init_params_dependig_on_dataest(self):
         # please implement it if necessary
-        return 
+        pass
 
 
     def parse_and_run_data_split_rule_dependig_on_dataest(self):
@@ -255,21 +328,36 @@ class DataReader:
         elif dataset.startswith(f'{dataset_origin}-losocv_'):
             n = int(dataset[len(f'{dataset_origin}-losocv_'):])
             self.split_losocv(n)
-        elif dataset.startswith(f'{dataset_origin}-separate'):
+        elif dataset.startswith(f'{dataset_origin}-combination_'):
             if self._sensor_ids is None:
                 raise NotImplementedError("self._sensor_ids is still None")
 
-            with_sep_ids = False
-            if dataset.endswith('_with_sep_ids'):
-                with_sep_ids = True
-                dataset = dataset[0:-len('_with_sep_ids')]
+            with_sid = False
+            if dataset.endswith('_with_sid'):
+                with_sid = True
+                dataset = dataset[0:-len('_with_sid')]
+
+            sensor_ids = [int(s) for s in dataset[len(f'{dataset_origin}-combination_'):].split("_")]
+
+            self._combination_target_sensor_ids = sensor_ids
+            self._with_sid = with_sid
+
+            self.split()
+        elif dataset.startswith(f'{dataset_origin}-separation'):
+            if self._sensor_ids is None:
+                raise NotImplementedError("self._sensor_ids is still None")
+
+            with_sid = False
+            if dataset.endswith('_with_sid'):
+                with_sid = True
+                dataset = dataset[0:-len('_with_sid')]
 
             sensor_ids = sorted(list(set(self._sensor_ids)))
-            if dataset.startswith(f'{dataset_origin}-separate_'):
-                sensor_ids = [int(s) for s in dataset[len(f'{dataset_origin}-separate_'):].split("_")]
+            if dataset.startswith(f'{dataset_origin}-separation_'):
+                sensor_ids = [int(s) for s in dataset[len(f'{dataset_origin}-separation_'):].split("_")]
 
-            self._separate_target_sensor_ids = sensor_ids
-            self._with_separated_sensor_id = with_sep_ids
+            self._separation_target_sensor_ids = sensor_ids
+            self._with_sid = with_sid
 
             self.split()
         elif dataset == self.dataset_origin:
