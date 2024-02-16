@@ -9,15 +9,15 @@ from ..core import DataReader
 class Sho(DataReader):
 
     def __init__(self, dataset):
-        self._label_map = [
-                (1, 'walking'),
-                (2, 'sitting'),
-                (3, 'standing'),
-                (4, 'jogging'),
-                (5, 'biking'),
-                (6, 'walking upstairs'),
-                (7, 'walking downstairs')
-            ]
+        self._label_map = np.array([ # (id, tag, tag-dataset)
+                (1, 'walking', 'walking'),
+                (2, 'sitting', 'sitting'),
+                (3, 'standing', 'standing'),
+                (4, 'jogging', 'jogging'),
+                (5, 'biking', 'biking'),
+                (6, 'walking upstairs', 'upstairs'),
+                (7, 'walking downstairs', 'downstairs')
+            ], dtype=object)
         super().__init__(
                 dataset = dataset, 
                 dataset_origin = 'sho',
@@ -53,7 +53,7 @@ class Sho(DataReader):
             }
 
         if label_map is None:
-            label_map = self._label_map
+            label_map = self._label_map[:, 0:2]
 
         self.split_data(tr_val_ts_ids, label_map)
 
@@ -62,16 +62,18 @@ class Sho(DataReader):
 
         user_ids = []
         filepaths = []
-        for uid in range(1, 15):
+        for uid in range(1, 11):
             user_ids.append(uid)
             filepaths.append(os.path.join(self.datapath,
                                 f'Dataset',
                                 f'Participant_{uid}.csv'))
-            
+        
+        act_name_to_id = {l:n for n, _, l in self._label_map}
+        act_name_to_id['upsatirs'] = act_name_to_id['upstairs'] # fix tag
+
         def read_file(filepath):
-            act_name_to_id = {l:n for n, l in self._label_map}
-                        
             df = pd.read_csv(filepath, sep=',', skiprows=1)
+
             df.iloc[:,-1] = [act_name_to_id[label] for label in df.iloc[:,-1]]
 
             return df
