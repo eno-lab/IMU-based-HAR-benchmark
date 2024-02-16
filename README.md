@@ -85,6 +85,7 @@ Available Datasets specifications are
 - ['mighar-offset_calib']                           # Using Offset calibrated data instead of raw data.
 - ['uschad']                                        
 - ['motion_sense']                                  
+- ['sho']                                           
 ```
 
 ## Suffix options 
@@ -137,6 +138,7 @@ The combination and separation sensor options can be used to select a single sen
 - [MIG-HAR](https://github.com/eno-lab/Meshed_IMU_Garment_HAR_Dataset)
 - [USC-HAD](https://sipi.usc.edu/had/)
 - [MotionSense](https://github.com/mmalekzadeh/motion-sense)
+- [SHO](https://www.researchgate.net/publication/266384007_Sensors_Activity_Recognition_DataSet)
 
 ## How to locate the downloaded dataset files
 
