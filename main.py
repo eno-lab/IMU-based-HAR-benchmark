@@ -104,8 +104,16 @@ if framework_name == 'tensorflow':
     if 'plot_metrics' not in globals():
         from utils import plot_metrics
 
-elif framework_name == 'pytoroch':
-    raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+elif framework_name == 'pytorch':
+    import torch
+    from torch import nn
+    if (torch.cuda.is_available()):
+        torch_device = 'cuda'
+    else:
+        torch_device = 'cpu'
+    
+    # NOTE: pytorch implement under construct
+    # raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
 else:
     raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 # ...................................................................................#
@@ -264,8 +272,66 @@ for dataset in datasets:
                                 #print(repr(traceback.format_exception(e) # for 3.10 > python version
                                 print(repr(traceback.format_exception(None, e, e.__traceback__)))
 
-                        elif framework_name == 'pytoroch':
-                            raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                        elif framework_name == 'pytorch':
+                            model: torch.nn.Module
+                            model.to(torch_device)
+
+                            param:torch.optim.Optimizer = torch.optim.Adam(model.parameters(), lr=hyperparameters['learning_rate'])
+
+                            if out_loss == 'categorical_crossentropy':
+                                lossfunc = torch.nn.CrossEntropyLoss().to(torch_device)
+                            else:
+                                raise NotImplementedError(f'This loss func option [{out_loss}] is not implemented by pytorch mode.')
+                            
+                            if out_activ == 'softmax':
+                                activfunc = nn.Softmax().to(torch_device)
+                            else:
+                                raise NotImplementedError(f'This activation func option [{out_activ}] is not implemented by pytorch mode.')
+
+                            X_tr = torch.Tensor(X_train).to(torch_device)
+                            y_tr = torch.Tensor(y_train).to(torch_device)
+                            X_tes = torch.Tensor(X_val).to(torch_device)
+                            y_tes = torch.Tensor(y_val).to(torch_device)
+
+                            train_loss = []
+                            train_acc = []
+                            test_loss = []
+                            test_acc = []
+                            for epoch in range(0, epochs):
+                                print(f'Epoch: {epoch}', end='')
+
+                                # 学習
+                                model.train()
+                                model.zero_grad()
+                                z = model(X_tr)
+                                z = activfunc(z)
+
+                                loss: torch.Tensor = lossfunc(z, y_tr)
+                                acc = torch.count_nonzero(torch.argmax(z, dim=1) == torch.argmax(y_tr, dim=1)).item() / z.shape[0]
+
+                                train_loss.append(torch.sum(loss).item())
+                                train_acc.append(acc)
+                                loss.backward()
+                                param.step()
+
+                                # テスト
+                                model.eval()
+                                z = model(X_tes)
+                                z = activfunc(z)
+
+                                loss = lossfunc(y_tes, z)
+                                acc = torch.count_nonzero(torch.argmax(z, dim=1) == torch.argmax(y_tes, dim=1)).item() / z.shape[0]
+                                test_loss.append(torch.sum(loss).item())
+                                test_acc.append(acc)
+
+                                print(f', train_loss: {train_loss[-1]:.3f}, train_acc: {train_acc[-1]:.3f}, test_loss: {test_loss[-1]:.3f}, test_acc: {test_acc[-1]:.3f}')
+
+                            # history and best_model_path is not implemented yet!
+                            history = None
+                            best_model_path = None
+
+                            # NOTE: pytorch implement under construct
+                            # raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                         #--------------------------------------------------------------#
@@ -277,7 +343,8 @@ for dataset in datasets:
                     if history is not None:
                         report.write(f"Model History \n{pd.DataFrame(history.history)}\n\n")
                     model_str = []
-                    model.summary(print_fn=lambda x: model_str.append(x))
+                    # NOTE: pytorch implement under construct
+                    # model.summary(print_fn=lambda x: model_str.append(x))
                     report.write("\n".join(model_str))
                     report.write('\n\n')
                     report.write("+++Hyperparameters+++\n")
@@ -310,14 +377,16 @@ for dataset in datasets:
                         print('###############################################################################')
 
                         if args.two_pass:
-                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.h5")) # h5 is fast
+                            _save_model_name = f'{file_prefix}_pass-{pass_n}_{model_type}'
                         else:
-                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.h5")) # h5 is fast
+                            _save_model_name = f'{file_prefix}_{model_type}'
 
                         #--------------------------------------------------------------#
                         # save trained model and get scores
                         #--------------------------------------------------------------#
                         if framework_name == 'tensorflow':
+                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{_save_model_name}.h5")) # h5 is fast
+
                             if not args.skip_train:
                                 model.save(_save_model_path) 
 
@@ -325,8 +394,22 @@ for dataset in datasets:
                             # TODO check: is it a cause of "CUDA_ERROR_ILLEGAL_ADDRESS"? should we reload the model from the pass?
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             predictions = model.predict(X_test).argmax(1)
-                        elif framework_name == 'pytoroch':
-                            raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                        elif framework_name == 'pytorch':
+                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{_save_model_name}.pt")) # h5 is fast
+
+                            if not args.skip_train:
+                                model.cpu()
+                                torch.save(model.state_dict(), _save_model_path)
+                            
+
+                            model.to(torch_device)
+                            X_tes = torch.Tensor(X_test).to(torch_device)
+                            y_tes = torch.Tensor(y_test).to(torch_device)
+                            # NOTE: need to add score calculation code
+                            scores = [0, 1]
+                            predictions = torch.argmax(model(X_tes), dim=1).cpu().detach().numpy()
+
+                            # raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                         #--------------------------------------------------------------#
@@ -396,8 +479,10 @@ for dataset in datasets:
 
                     if framework_name == 'tensorflow':
                         tf.keras.backend.clear_session()
-                    elif framework_name == 'pytoroch':
-                        raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                    elif framework_name == 'pytorch':
+                        pass
+                        # NOTE: pytorch implement under construct
+                        # raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
                     else:
                         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                     gc.collect()
