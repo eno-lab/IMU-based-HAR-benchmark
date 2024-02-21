@@ -57,6 +57,11 @@ CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'tsf
 ```
 The last two examples requiring the rTsfNet model. Plz see [Related repositories] section.
 
+## Note
+Tensorflow 2.15 has [a bug](https://github.com/tensorflow/tensorflow/issues/62607) on LayerNormalization.
+If you evaluate tensorflow models including LayerNormalization,  
+please use the other versions, such as 2.14, or set 1e-7 for the epsilon attribute of LayerNormalization.
+
 # Available Dataset
 DATASETS is handled via 'eval'.
 
