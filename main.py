@@ -416,7 +416,7 @@ for dataset in datasets:
                     if framework_name == 'tensorflow':
                         model.summary(print_fn=lambda x: model_str.append(x))
                     if framework_name == 'pytorch':
-                        torchinfo.summary(model, input_size=X_train.shape)
+                        model_str.append(repr(torchinfo.summary(model, input_size=X_train.shape)))
 
                     report.write("\n".join(model_str))
                     report.write('\n\n')
@@ -440,8 +440,8 @@ for dataset in datasets:
 
                             if framework_name == 'tensorflow':
                                 model.load_weights(best_model_path) 
-                            elif framework_name == 'pytoroch':
-                                raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                            elif framework_name == 'pytorch':
+                                model.load_state_dict(torch.load(best_model_path))
                             else:
                                 raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
