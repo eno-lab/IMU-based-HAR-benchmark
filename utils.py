@@ -180,6 +180,23 @@ def transform_y(y, nr_classes, dataset):
     return ybinary
 
 
+def calc_class_weight(_y_train, no_weight):
+
+    class_weight = np.zeros(_y_train.shape[1])
+    def calc_cl_w():
+        print(_y_train.shape)
+        cls_freq = _y_train.mean(axis=0) 
+        print(cls_freq)
+        _w = np.max(cls_freq)/cls_freq
+        print(_w)
+        return _w/np.sum(_w)*_y_train.shape[1]
+    
+    for i, w in zip(range(_y_train.shape[1]), calc_cl_w()):
+        class_weight[i] = w if not no_weight else 1
+
+    return class_weight
+
+
 # Model and dataset evaluation
 def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, patience=10, boot_strap_epochs=0,
                    batch_size=64, _save_name='trained_models/please_provide_a_name.h5', _log_dir='logs/fit', no_weight=True, shuffle_on_train=False, lr_magnif_on_plateau=0.8):
@@ -204,17 +221,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, pat
     reduce_lr = ReduceLROnPlateau(monitor='loss', factor=lr_magnif_on_plateau, patience=10,
                                   min_lr=0.0000001, verbose=1)
 
-    class_weight = {}
-    def calc_cl_w():
-        print(_y_train.shape)
-        cls_freq = _y_train.mean(axis=0) 
-        print(cls_freq)
-        _w = np.max(cls_freq)/cls_freq
-        print(_w)
-        return _w/np.sum(_w)*_y_train.shape[1]
-    
-    for i, w in zip(range(_y_train.shape[1]), calc_cl_w()):
-        class_weight[i] = w if not no_weight else 1
+    class_weight = calc_class_weight(_y_train, no_weight)
 
     print(len(class_weight))
     for key in class_weight:

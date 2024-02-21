@@ -8,3 +8,7 @@ h5py
 scipy
 simplejson
 optuna
+torch
+torchvision
+torchaudio
+torchinfo
