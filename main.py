@@ -319,7 +319,7 @@ for dataset in datasets:
                                     #loss *= y_weight
                                     return pred, loss
                             
-                            try_model = TrialModel(model, out_loss, out_activ, calc_class_weight(y_train, not clw))
+                            try_model = TrialModel(model, out_loss, out_activ, calc_class_weight(y_train) if not clw else None)
 
                             def summarize_loss(loss):
                                 return torch.sum(loss).item()
