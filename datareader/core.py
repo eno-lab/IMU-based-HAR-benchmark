@@ -2,6 +2,7 @@ import os
 import re
 import gc
 
+import pickle
 import h5py
 import numpy as np
 import pandas as pd
@@ -10,7 +11,9 @@ from .utils import interp_nans, to_categorical
 
 class DataReader:
     def __init__(self, dataset, dataset_origin, win_size, data_cols,
-            dataset_path=None, sensor_ids = None):
+            dataset_path=None, sensor_ids = None, 
+            use_np_cache = False # for big dataset
+            ):
         self.dataset = dataset
         self.dataset_origin = dataset_origin
         if dataset_path is None:
@@ -32,6 +35,7 @@ class DataReader:
         self._win_size = win_size
         self._data = {'X': None, 'y': None, 'id': None}
         self._cols = data_cols
+        self._use_np_cache = use_np_cache
 
         self._with_sid = False
         self._separation_target_sensor_ids = None
@@ -42,14 +46,20 @@ class DataReader:
         if not dataset.startswith(self.dataset_origin):
             raise ValueError(f"Invalid dataset name: {self.dataset}")
 
-        if self.is_cached():
-            self.load_data()
+        if self._use_np_cache and self.check_np_cache():
+            self.load_np_cache()
         else:
-            self.read_data()
-            self.save_data()
+            if self.is_cached():
+                self.load_data()
+            else:
+                self.read_data()
+                self.save_data()
 
-        if not self.parse_and_run_data_split_rule_dependig_on_dataest():
-            self.parse_and_run_data_split_rule()
+            if not self.parse_and_run_data_split_rule_dependig_on_dataest():
+                self.parse_and_run_data_split_rule()
+
+            if self._use_np_cache:
+                self.save_np_cache()
 
 
     def read_data(self):
@@ -73,6 +83,38 @@ class DataReader:
             f.create_dataset('X', data=self._data['X'])
             f.create_dataset('y', data=self._data['y'])
             f.create_dataset('id', data=self._data['id'])
+
+
+    def check_np_cache(self):
+        if self.dataset == self.dataset_origin:
+            return False
+
+        npz = os.path.exists(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.npz'))
+        i2l = os.path.exists(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.id_to_label.pkl'))
+        return npz & i2l
+
+
+    def load_np_cache(self):
+        npf = np.load(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.npz'))
+        self._X_train = npf['X_train']
+        self._X_valid = npf['X_valid']
+        self._X_test  = npf['X_test']
+        self._y_train = npf['y_train']
+        self._y_valid = npf['y_valid']
+        self._y_test  = npf['y_test']
+        self._id_to_label = pickle.load(open(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.id_to_label.pkl'), 'rb'))
+
+
+    def save_np_cache(self):
+        os.makedirs(os.path.join(self.datapath, 'np_cache'), exist_ok=True)
+        np.savez(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.npz'), 
+                X_train=self._X_train,
+                X_valid=self._X_valid,
+                X_test=self._X_test,
+                y_train=self._y_train,
+                y_valid=self._y_valid,
+                y_test=self._y_test)
+        pickle.dump(self.id_to_label, open(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.id_to_label.pkl'), 'wb'))
 
 
     def gen_ispl_style_set(self):
@@ -413,7 +455,7 @@ class DataReader:
 
     @property
     def input_shape(self):
-        return (None,) + self._data['X'].shape[1:]
+        return (None,) + self._X_train.shape[1:]
 
 
     @property

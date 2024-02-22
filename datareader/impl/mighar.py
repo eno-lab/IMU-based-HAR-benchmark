@@ -37,7 +37,8 @@ class Mighar(DataReader):
                 win_size = 256, # 2.56 sec in 100 hz
                 dataset_path = os.path.join('dataset', 'Meshed_IMU_Garment_HAR_Dataset'),
                 data_cols = list(range(3*3*396)),
-                sensor_ids = [i for i in range(self.sensor_num) for _ in range(3*len(self.stypes))]
+                sensor_ids = [i for i in range(self.sensor_num) for _ in range(3*len(self.stypes))],
+                use_np_cache = True
                 )
 
 
