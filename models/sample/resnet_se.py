@@ -60,7 +60,7 @@ def resnet_se(x_shape,
         Dense(128, activation="relu"),
         ])(x)
 
-    x = Dense(n_classes, activation='softmax', kernel_regularizer=l2(regularization_rate))(x)
+    x = Dense(n_classes, activation=out_activ, kernel_regularizer=l2(regularization_rate))(x)
 
     m = Model(inputs, x)
 

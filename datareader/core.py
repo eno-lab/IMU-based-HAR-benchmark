@@ -392,12 +392,12 @@ class DataReader:
 
 
     @property
-    def out_loss(self):
+    def recommended_out_loss(self):
         return 'categorical_crossentropy'
 
 
     @property
-    def out_activ(self):
+    def recommended_out_activ(self):
         return 'softmax'
 
 
