@@ -131,12 +131,12 @@ for dataset in datasets:
 
     if args.ispl_datareader:
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = load_dataset(dataset)
-        recommemded_out_loss, recommemded_out_activ = get_loss_and_activation(dataset)
+        recommended_out_loss, recommended_out_activ = get_loss_and_activation(dataset)
         file_prefix = f"{file_prefix}_ispl-datareader"
     else:
         dr = gen_datareader(dataset)
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = dr.gen_ispl_style_set()
-        recommemded_out_loss, recommemded_out_activ = dr.recommemded_out_loss, dr.recommemded_out_activ
+        recommended_out_loss, recommended_out_activ = dr.recommended_out_loss, dr.recommended_out_activ
 
 
     if downsampling_ignore_rate > 0:
@@ -229,7 +229,7 @@ for dataset in datasets:
                                 model = tf.keras.saving.load_model(args.pretrained_model)
                             else:
                                 model = mod.gen_model(input_shape, n_classes, 
-                                                      recommemded_out_loss, recommemded_out_activ, 
+                                                      recommended_out_loss, recommended_out_activ, 
                                                       METRICS, hyperparameters)
                         elif pass_n == 2:
                             model = tf.keras.saving.load_model(best_model_weight_path)
