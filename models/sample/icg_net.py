@@ -57,7 +57,7 @@ def icg_net(x_shape,
     x = Flatten()(x)
     x = Dense(64)(x)
     x = BatchNormalization()(x)
-    x = Dense(n_classes, activation='softmax', kernel_regularizer=l2(regularization_rate))(x)
+    x = Dense(n_classes, activation=out_activ, kernel_regularizer=l2(regularization_rate))(x)
 
     m = Model(inputs, x)
 

@@ -43,7 +43,7 @@ def mch_cnn_gru(x_shape,
     x = GRU(64, return_sequences=True)(x)
     x = GlobalAveragePooling1D()(x)
     x = BatchNormalization()(x)
-    x = Dense(n_classes, activation='softmax', 
+    x = Dense(n_classes, activation=out_activ, 
             kernel_regularizer=None if regularization_rate is None else l2(regularization_rate)
             )(x)
 
