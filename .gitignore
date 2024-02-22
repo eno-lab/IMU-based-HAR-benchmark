@@ -164,3 +164,13 @@ cython_debug/
 *.csv
 *.txt
 *.sh
+
+# ignore detaset
+#   dataset must be placed by user
+dataset/*
+
+# ignore app genetrated
+images/*
+reports/*
+trained_models/*
+logs/*
