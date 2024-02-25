@@ -158,24 +158,32 @@ class DataReader:
         _y = [label_to_id[y] for y in self._data['y'][_label_filter]] # copy, but small
         _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
 
-        _id = self._data['id'][_label_filter] # copy, but small
-        _f_train = np.in1d(_id, ids['train'])
-        _f_valid = np.in1d(_id, ids['validation'])
-        _f_test = np.in1d(_id, ids['test'])
+        _f_train = np.in1d(self._data['id'], ids['train'])
+        _f_valid = np.in1d(self._data['id'], ids['validation'])
+        _f_test = np.in1d(self._data['id'], ids['test'])
+
+        _id = self._data['id'][_label_filter]
+        _y_f_train = np.in1d(_id, ids['train'])
+        _y_f_valid = np.in1d(_id, ids['validation'])
+        _y_f_test =  np.in1d(_id, ids['test'])
+
+        _X_f_train = np.logical_and(_label_filter, _f_train)
+        _X_f_valid = np.logical_and(_label_filter, _f_valid)
+        _X_f_test = np.logical_and(_label_filter, _f_test)
 
         # these big copies sometime are caused for memory size issues
         if x_col_filter is not None:
-            self._X_train = self._data['X'][np.logical_and(_label_filter, _f_train),:,x_col_filter] # copy
-            self._X_valid = self._data['X'][np.logical_and(_label_filter, _f_valid),:,x_col_filter] # copy
-            self._X_test = self._data['X'][np.logical_and(_label_filter, _f_test),:,x_col_filter] # copy
+            self._X_train = self._data['X'][_X_f_train,:,x_col_filter] # copy
+            self._X_valid = self._data['X'][_X_f_valid,:,x_col_filter] # copy
+            self._X_test =  self._data['X'][_X_f_test,:,x_col_filter] # copy
         else:
-            self._X_train = self._data['X'][np.logical_and(_label_filter, _f_train)] # copy
-            self._X_valid = self._data['X'][np.logical_and(_label_filter, _f_valid)] # copy
-            self._X_test = self._data['X'][np.logical_and(_label_filter, _f_test)] # copy
+            self._X_train = self._data['X'][_X_f_train] # copy
+            self._X_valid = self._data['X'][_X_f_valid] # copy
+            self._X_test =  self._data['X'][_X_f_test] # copy
 
-        self._y_train = _y[_f_train] # copy, but small
-        self._y_valid = _y[_f_valid] # copy, but small
-        self._y_test = _y[_f_test] # copy, but small
+        self._y_train = _y[_y_f_train] # copy, but small
+        self._y_valid = _y[_y_f_valid] # copy, but small
+        self._y_test =  _y[_y_f_test] # copy, but small
 
         self.handling_separation_sensor_settings()
         self.handling_combination_sensor_settings()
