@@ -69,31 +69,13 @@ class OpportunityRealLastLabel(DataReader):
                 ) 
 
 
-    def parse_and_run_data_split_rule_dependig_on_dataest(self):
-        dataset = self.dataset
-        if dataset.endswith('_with_sep_ids'):
-            with_sep_ids = True
-            dataset = dataset[0:-len('_with_sep_ids')]
-
+    def init_params_dependig_on_dataest(self):
         tasks = ["task_b2", "task_b2_no_null", "task_c", "task_c_no_null"]
-        sensor_ids = None
+        self._task = 'original'
         for task in tasks:
-            prefix = f'opportunity_real_last_label-{task}-separate'
-            if dataset.startswith(prefix):
-                if self._sensor_ids is None:
-                    raise NotImplementedError("self._sensor_ids is still None")
-                sensor_ids = sorted(list(set(self._sensor_ids)))
-
-                if dataset.startswith(f'{prefix}_'):
-                    sensor_ids = [int(s) for s in dataset[len(f'{prefix}_'):].split("_")]
-
-                eval(f'self._split_opportunity_{task}()')
-                return True
-            elif dataset == f'opportunity_real_last_label-{task}':
-                eval(f'self._split_opportunity_{task}()')
-                return True
-
-        return False
+            if self.dataset.startswith(f'opportunity_real-{task}'):
+                self._task = task
+                self._normal_split_dataset_name.append(f'opportunity_real-{task}')
 
 
     def _split_opportunity_task_b2_no_null(self):
@@ -131,7 +113,7 @@ class OpportunityRealLastLabel(DataReader):
             'test':  [9, 10, 15, 16]
         }
 
-        self.split(files, label_map)
+        return files, label_map, None
 
 
     def _split_opportunity_task_c_no_null(self):
@@ -156,7 +138,7 @@ class OpportunityRealLastLabel(DataReader):
             (405506, 'Toggle Switch')
         ]
 
-        self._split_opportunity_task_c(label_map)
+        return self._split_opportunity_task_c(label_map)
 
 
     def _split_opportunity_task_c(self, label_map = None):
@@ -182,10 +164,14 @@ class OpportunityRealLastLabel(DataReader):
 
         col_filter =  np.in1d(_cols, cols)
 
-        self.split(files, label_map = label_map, x_col_filter = col_filter)
+        return files, label_map, x_col_filter
 
 
     def split(self, tr_val_ts_ids = None, label_map = None, x_col_filter=None):
+
+        if self._task != 'original':
+            tr_val_ts_ids, label_map, x_col_filter = eval(f'_split_opportunity_{self._task}()')
+
         if tr_val_ts_ids is None:
             tr_val_ts_ids = {
                 'train': [     1 , 2,  3,  4,  5, 
@@ -217,7 +203,6 @@ class OpportunityRealLastLabel(DataReader):
                 (407521, 'Drink from Cup'),
                 (405506, 'Toggle Switch')
             ]
-
 
         self.split_data(tr_val_ts_ids, label_map, x_col_filter)
 

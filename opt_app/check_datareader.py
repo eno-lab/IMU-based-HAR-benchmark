@@ -11,8 +11,16 @@ args = parser.parse_args()
 dr = gen_datareader(args.dataset)
 X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = dr.gen_ispl_style_set()
 
+print("===============")
+print(f"{args.dataset}")
+print("===============")
 
 print("Data Distribution: \n\n")
+print("===============")
+print(f"Train:{X_train.shape} | {y_train.shape}")
+print(f"Validation:{X_val.shape} | {y_val.shape}")
+print(f"Test:{X_test.shape} | {y_test.shape}")
+print("===============")
 print(f"Train:  X -> {X_train.shape} Class count -> {list(np.bincount(y_train.argmax(1)))} \n\n"
              f"{pd.DataFrame(y_train.mean(axis=0) * 100, index=labels, columns=['frequency'])}\n\n")
 print(f"Validation:  X -> {X_val.shape} Class count -> {list(np.bincount(y_val.argmax(1)))} \n\n"

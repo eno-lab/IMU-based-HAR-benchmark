@@ -6,6 +6,7 @@ import pickle
 import h5py
 import numpy as np
 import pandas as pd
+import sklearn.model_selection
 from .utils import interp_nans, to_categorical
 
 
@@ -16,6 +17,9 @@ class DataReader:
             ):
         self.dataset = dataset
         self.dataset_origin = dataset_origin
+
+        self._normal_split_dataset_name = [self.dataset_origin]
+
         if dataset_path is None:
             self.datapath = os.path.join('dataset', dataset_origin) 
         else:
@@ -36,6 +40,7 @@ class DataReader:
         self._data = {'X': None, 'y': None, 'id': None}
         self._cols = data_cols
         self._use_np_cache = use_np_cache
+        self._ratio = None
 
         self._with_sid = False
         self._separation_target_sensor_ids = None
@@ -55,8 +60,7 @@ class DataReader:
                 self.read_data()
                 self.save_data()
 
-            if not self.parse_and_run_data_split_rule_dependig_on_dataest():
-                self.parse_and_run_data_split_rule()
+            self.parse_and_run_data_split_rule()
 
             if self._use_np_cache:
                 self.save_np_cache()
@@ -121,35 +125,7 @@ class DataReader:
         return self.X_train, self.y_train, self.X_valid, self.y_valid, self.X_test, self.y_test, self.id_to_label, self.n_classes, 
 
    
-    def is_ratio(self):
-        ratio_re_match = re.match('{self.dataset_origin}_ratio_(\d+)_(\d+)_(\d+)', self.dataset)
-        return ratio_re_match is not None
-
-
-    def split_with_ratio(self):
-        ratio_re_match = re.match('{self.dataset_origin}_ratio_(\d+)_(\d+)_(\d+)', self.dataset)
-        r_train = float(ratio_re_match.groups()[0])
-        r_valid = float(ratio_re_match.groups()[1])
-        r_test  = float(ratio_re_match.groups()[2])
-
-        total_ratio = r_train + r_valid + r_test
-        r_train /= total_ratio
-        r_valid /= total_ratio
-        r_test /= total_ratio
-
-        ix = np.arange(self._data['X'].shape[0])
-        ix_train, ix_test = train_test_split(ix, test_size = test_ratio, random_stateint=42)
-        ix_train, ix_valid= train_test_split(ix_train, test_size = valid_ratio/(train_ratio+valid_ratio), random_stateint=42)
-
-        self._X_train = self._data['X'][ix_train]
-        self._X_valid = self.data['X'][ix_valid]
-        self._X_test = self.data['X'][ix_test]
-        self._y_train = self.data['y'][ix_train]
-        self._y_valid = self.data['y'][ix_valid]
-        self._y_test = self.data['y'][ix_test]
-
-
-    def split_data(self, ids, label_map, x_col_filter=None):
+    def split_data(self, ids, label_map, col_filter = None):
         label_to_id = {x[0]: i for i, x in enumerate(label_map)}
         self._id_to_label = [x[1] for x in label_map]
 
@@ -172,18 +148,40 @@ class DataReader:
         _X_f_test = np.logical_and(_label_filter, _f_test)
 
         # these big copies sometime are caused for memory size issues
-        if x_col_filter is not None:
-            self._X_train = self._data['X'][_X_f_train,:,x_col_filter] # copy
-            self._X_valid = self._data['X'][_X_f_valid,:,x_col_filter] # copy
-            self._X_test =  self._data['X'][_X_f_test,:,x_col_filter] # copy
-        else:
-            self._X_train = self._data['X'][_X_f_train] # copy
-            self._X_valid = self._data['X'][_X_f_valid] # copy
-            self._X_test =  self._data['X'][_X_f_test] # copy
+        if col_filter is not None:
+            self._data['X'] = self._data['X'][:,:,col_filter]
+            self._sensor_ids = [self._sensor_ids[i] for i in range(len(col_filter)) if col_filter[i]]
+
+        # these big copies sometime are caused for memory size issues
+        self._X_train = self._data['X'][_X_f_train] # copy
+        self._X_valid = self._data['X'][_X_f_valid] # copy
+        self._X_test =  self._data['X'][_X_f_test] # copy
 
         self._y_train = _y[_y_f_train] # copy, but small
         self._y_valid = _y[_y_f_valid] # copy, but small
         self._y_test =  _y[_y_f_test] # copy, but small
+
+        if self._ratio is not None:
+            print("[WARNING] Ratio option is specified. The train/valid/test splits are changed from normal one.")
+            _X = np.concatenate([self._X_train, self._X_valid, self._X_test], axis=0)
+            _y = np.concatenate([self._y_train, self._y_valid, self._y_test], axis=0)
+
+            r_train, r_valid, r_test = self._ratio
+            total_ratio = r_train + r_valid + r_test
+            r_train /= total_ratio
+            r_valid /= total_ratio
+            r_test /= total_ratio
+
+            ix = np.arange(_X.shape[0])
+            ix_train, ix_test = sklearn.model_selection.train_test_split(ix, test_size = r_test, random_state=42)
+            ix_train, ix_valid= sklearn.model_selection.train_test_split(ix_train, test_size = r_valid/(r_train + r_valid), random_state=42)
+
+            self._X_train = _X[ix_train]
+            self._X_valid = _X[ix_valid]
+            self._X_test = _X[ix_test]
+            self._y_train = _y[ix_train]
+            self._y_valid = _y[ix_valid]
+            self._y_test = _y[ix_test]
 
         self.handling_separation_sensor_settings()
         self.handling_combination_sensor_settings()
@@ -194,7 +192,7 @@ class DataReader:
             valid_imu_ids = set(self._sensor_ids)
             invalid_imu_ids = [ix for ix in self._combination_target_sensor_ids if ix not in valid_imu_ids]
             if len(invalid_imu_ids) != 0:
-                raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}")
+                raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}; valid sensor ids = {valid_imu_ids}")
 
             _filter = np.in1d(self._sensor_ids, self._combination_target_sensor_ids)
             self._X_train = self._X_train[:,:,_filter]
@@ -233,7 +231,7 @@ class DataReader:
                     if mode not in shapes:
                         shapes[mode] = v.shape
                     elif shapes[mode][-1] != v.shape[-1]:  # different sensor axis num
-                        raise ValueError(f"number of columns is different on column id: {sensor_id}, type: {mode}")
+                        raise ValueError(f"number of columns is different on sensorn id: {sensor_id}, type: {mode}")
                     x_l[mode].append(v)
 
             self._X_train = np.vstack(x_l['train'])
@@ -359,58 +357,97 @@ class DataReader:
         pass
 
 
-    def parse_and_run_data_split_rule_dependig_on_dataest(self):
-        """ 
-            Please implement it if necessary.
-            If do something here (and return True), 
-            the parse_and_run_data_split_rule run next will be skipped.
-            return: do something (True) or not (False)
-        """
-        return False
+    def parse_suffix_options(self):
+        options = self.dataset.split('-')
+        dataset_origin = self.dataset_origin
+
+        flags = {}
+        remaining = []
+
+        def check_duplicated(opt):
+            if f'is_{opt}' in flags and flags[f'is_{opt}']:
+                raise ValueError('duplicated {opt} suffix: {self.dataset}')
+            flags[f'is_{opt}'] = True
+
+        for ix, option in enumerate(options):
+            if option == self.dataset_origin:
+                remaining.append(ix)
+                continue 
+
+            ratio_re_match = re.match('^ratio_(\d+)_(\d+)_(\d+)$', option)
+            if ratio_re_match is not None:
+                check_duplicated('ratio')
+                flags['train_ratio'] = float(ratio_re_match.groups()[0])
+                flags['valid_ratio'] = float(ratio_re_match.groups()[1])
+                flags['test_ratio']  = float(ratio_re_match.groups()[2])
+            elif option.startswith(f'losocv_'):
+                check_duplicated('losocv')
+                flags['losocv_n'] = int(option[len('losocv_'):])
+            elif option.startswith('separation'):
+                check_duplicated('separation')
+                with_sid = False
+                if option.endswith('_with_sid'):
+                    with_sid = True
+                    option = option[0:-len('_with_sid')]
+
+                if option.startswith(f'separation_'):
+                    sensor_ids = [int(s) for s in option[len(f'separation_'):].split("_")]
+
+                flags['sep_sids'] = sensor_ids
+                flags['sep_with_sid'] = with_sid 
+
+            elif option.startswith('combination'):
+                check_duplicated('combination')
+                with_sid = False
+                if option.endswith('_with_sid'):
+                    with_sid = True
+                    option = option[0:-len('_with_sid')]
+
+                if option.startswith(f'combination_'):
+                    sensor_ids = [int(s) for s in option[len(f'combination_'):].split("_")]
+
+                flags['cmb_sids'] = sensor_ids
+                flags['cmb_with_sid'] = with_sid
+            else:
+                remaining.append(ix)
+
+        def check_flag(opt):
+            return f'is_{opt}' in flags and flags[f'is_{opt}']
+
+        if check_flag('combination') and check_flag('separation'):
+            raise ValueError(f'Only one of combination and separation suffix options can be set: {self.dataset}')
+
+        elif (check_flag('combination') or check_flag('separation')) and self._sensor_ids is None:
+            raise NotImplementedError(f"self._sensor_ids is still None with combination or separation option: {self.dataset}")
+
+        elif check_flag('ratio') and check_flag('losocv'):
+            raise ValueError(f'Only one of ratio and losocv suffix options can be set: {self.dataset}')
+
+        return '-'.join([options[ix] for ix in remaining]), flags
 
 
     def parse_and_run_data_split_rule(self):
-        dataset = self.dataset
+        dataset, flags = self.parse_suffix_options()
+        print(dataset)
         dataset_origin = self.dataset_origin
 
-        if self.is_ratio():
-            self.split_with_ratio()
-        elif dataset.startswith(f'{dataset_origin}-losocv_'):
-            n = int(dataset[len(f'{dataset_origin}-losocv_'):])
-            self.split_losocv(n)
-        elif dataset.startswith(f'{dataset_origin}-combination_'):
-            if self._sensor_ids is None:
-                raise NotImplementedError("self._sensor_ids is still None")
+        def check_flag(opt):
+            return f'is_{opt}' in flags and flags[f'is_{opt}']
 
-            with_sid = False
-            if dataset.endswith('_with_sid'):
-                with_sid = True
-                dataset = dataset[0:-len('_with_sid')]
+        if check_flag('combination'):
+            self._combination_target_sensor_ids = flags['cmb_sids']
+            self._with_sid = flags['cmb_with_sid']
+        elif check_flag('separation'):
+            self._separation_target_sensor_ids = flags['sep_sids']
+            self._with_sid = flags['sep_with_sid']
 
-            sensor_ids = [int(s) for s in dataset[len(f'{dataset_origin}-combination_'):].split("_")]
+        if check_flag('ratio'):
+            self._ratio = (flags['train_ratio'], flags['valid_ratio'], flags['test_ratio'])
 
-            self._combination_target_sensor_ids = sensor_ids
-            self._with_sid = with_sid
-
-            self.split()
-        elif dataset.startswith(f'{dataset_origin}-separation'):
-            if self._sensor_ids is None:
-                raise NotImplementedError("self._sensor_ids is still None")
-
-            with_sid = False
-            if dataset.endswith('_with_sid'):
-                with_sid = True
-                dataset = dataset[0:-len('_with_sid')]
-
-            sensor_ids = sorted(list(set(self._sensor_ids)))
-            if dataset.startswith(f'{dataset_origin}-separation_'):
-                sensor_ids = [int(s) for s in dataset[len(f'{dataset_origin}-separation_'):].split("_")]
-
-            self._separation_target_sensor_ids = sensor_ids
-            self._with_sid = with_sid
-
-            self.split()
-        elif dataset == self.dataset_origin:
+        if check_flag('losocv'):
+            print('losocv')
+            self.split_losocv(flags['losocv_n'])
+        elif dataset in self._normal_split_dataset_name:
             self.split()
         else:
             raise ValueError(f'invalid dataset name: {dataset}')
