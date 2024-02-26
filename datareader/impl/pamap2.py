@@ -20,36 +20,7 @@ class Pamap2(DataReader):
             'subject109.dat' # 109 includes label:24 only
         ]
 
-        super().__init__(
-                dataset = dataset, 
-                dataset_origin = 'pamap2', 
-                win_size = 256, 
-                data_cols = [
-                    1,  # Label
-                    4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,  # IMU Hand
-                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  # IMU Chest
-                    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49  # IMU ankle
-                ],
-                sensor_ids = [i for i in range(3) for _ in range(12)], # 12 cols for three imu
-                )
-
-
-    def parse_and_run_data_split_rule_dependig_on_dataest(self):
-        dataset = self.dataset 
-
-        if dataset.startswith('pamap2-with_rj-losocv_'):
-            n = int(dataset[len('pamap2-with_rj-losocv_'):])
-            self._split_with_rj_losocv(n)
-        elif dataset == 'pamap2-with_rj':
-            self._split_with_rj()
-        else:
-            return False
-
-        return True
-
-
-    def _split_with_rj_losocv(self, n):
-        label_map = [
+        self._label_map = [
             # (0, 'other'),
             (1, 'lying'),
             (2, 'sitting'),
@@ -68,9 +39,27 @@ class Pamap2(DataReader):
             # (18, 'folding laundry'),
             # (19, 'house cleaning'),
             # (20, 'playing soccer'),
-            (24, 'rope jumping')
+            # (24, 'rope jumping')
         ]
-        self.split_losocv(n, label_map=label_map)
+
+        super().__init__(
+                dataset = dataset, 
+                dataset_origin = 'pamap2', 
+                win_size = 256, 
+                data_cols = [
+                    1,  # Label
+                    4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,  # IMU Hand
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  # IMU Chest
+                    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49  # IMU ankle
+                ],
+                sensor_ids = [i for i in range(3) for _ in range(12)], # 12 cols for three imu
+                )
+
+
+    def init_params_dependig_on_dataest(self):
+        if self.dataset.startswith('pamap2-with_rj'):
+            self._label_map.append((24, 'rope jumping'))
+            self._normal_split_dataset_name.append('pamap2-with_rj')
 
 
     def split_losocv(self, n, label_map = None):
@@ -93,32 +82,6 @@ class Pamap2(DataReader):
         self.split(subjects, label_map=label_map)
 
 
-    def _split_with_rj(self):
-        label_map = [
-            # (0, 'other'),
-            (1, 'lying'),
-            (2, 'sitting'),
-            (3, 'standing'),
-            (4, 'walking'),
-            (5, 'running'),
-            (6, 'cycling'),
-            (7, 'nordic walking'),
-            # (9, 'watching TV'),
-            # (10, 'computer work'),
-            # (11, 'car driving'),
-            (12, 'ascending stairs'),
-            (13, 'descending stairs'),
-            (16, 'vacuum cleaning'),
-            (17, 'ironing'),
-            # (18, 'folding laundry'),
-            # (19, 'house cleaning'),
-            # (20, 'playing soccer'),
-            (24, 'rope jumping')
-        ]
-
-        self.split(label_map=label_map)
-
-
     def split(self, subjects = None, label_map = None):
         if subjects is None:
             subjects = {
@@ -128,29 +91,10 @@ class Pamap2(DataReader):
             }
 
         if label_map is None:
-            label_map = [
-                # (0, 'other'),
-                (1, 'lying'),
-                (2, 'sitting'),
-                (3, 'standing'),
-                (4, 'walking'),
-                (5, 'running'),
-                (6, 'cycling'),
-                (7, 'nordic walking'),
-                # (9, 'watching TV'),
-                # (10, 'computer work'),
-                # (11, 'car driving'),
-                (12, 'ascending stairs'),
-                (13, 'descending stairs'),
-                (16, 'vacuum cleaning'),
-                (17, 'ironing'),
-                # (18, 'folding laundry'),
-                # (19, 'house cleaning'),
-                # (20, 'playing soccer'),
-                # (24, 'rope jumping')
-            ]
+            label_map = self._label_map
 
         self.split_data(subjects, label_map)
+
 
     def read_data(self):
         self._read_data(enumerate(self._filelist),

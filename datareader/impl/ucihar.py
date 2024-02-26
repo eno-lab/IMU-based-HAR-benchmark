@@ -7,6 +7,8 @@ from ..core import DataReader
 
 class Ucihar(DataReader):
     def __init__(self, dataset):
+
+        self._ispl = False
         super().__init__(
                 dataset = dataset, 
                 dataset_origin = 'ucihar', 
@@ -16,17 +18,14 @@ class Ucihar(DataReader):
 
 
 
-    def parse_and_run_data_split_rule_dependig_on_dataest(self):
+    def init_params_dependig_on_dataest(self):
         dataset = self.dataset
 
-        if dataset == 'ucihar-ispl':
-            self.split_ispl()
-        elif dataset == 'ucihar-orig':
-            self.split()
-        else:
-            return False
-
-        return True
+        if dataset.startswith('ucihar-ispl'):
+            self._ispl = True
+            self._normal_split_dataset_name.append('ucihar-ispl')
+        elif dataset.startswith('ucihar-orig'):
+            self._normal_split_dataset_name.append('ucihar-orig')
 
 
     def split_losocv(self, n):
@@ -52,19 +51,42 @@ class Ucihar(DataReader):
 
 
     def split(self, tr_val_ts_ids = None, label_map = None):
-        """ Original split of ucihar """
-        tr_val_ts_ids = {
-            'train': [
-                1, 3, 5, 6, 8, 11, 14, 15, 16, 17, 19,
-                21, 23, 25, 26, 27, 28, 29, 30
-            ],
-            'validation': [
-                22, 7
-            ],
-            'test': [
-                2, 4, 9, 10, 12, 13, 18, 20, 24,
-            ]
-        }
+
+        ######################
+        if self._ispl:
+            if tr_val_ts_ids is not  None:
+                raise ValueError(f"iSPLInception's split is conflicted with specified split: {tr_val_ts_ids}")
+            tr_val_ts_ids = {
+                # Original train set = 70% of all subjects
+                'train': [
+                    1, 3, 5, 6, 7, 8, 11, 14, 15, 16, 17,
+                    19, 21, 22, 23, 25, 26, 27, 28, 29, 30
+                ],
+                # 1/3 of test set = 10% of all subjects
+                'validation': [
+                    4, 12, 20
+                ],
+                # 2/3 of original test set = 20% of all subjects
+                'test': [
+                    2, 9, 10, 13, 18, 24
+                ]
+            }
+        ######################
+        else:
+            """ Original split of ucihar """
+            if tr_val_ts_ids is None:
+                tr_val_ts_ids = {
+                    'train': [
+                        1, 3, 5, 6, 8, 11, 14, 15, 16, 17, 19,
+                        21, 23, 25, 26, 27, 28, 29, 30
+                    ],
+                    'validation': [
+                        22, 7
+                    ],
+                    'test': [
+                        2, 4, 9, 10, 12, 13, 18, 20, 24,
+                    ]
+                }
 
         if label_map is None:
             label_map = [
@@ -77,28 +99,6 @@ class Ucihar(DataReader):
             ]
 
         self.split_data(tr_val_ts_ids, label_map)
-
-
-    # This data is already windowed and segmented
-    def split_ispl(self):
-        # ispl based split
-        subjects = {
-            # Original train set = 70% of all subjects
-            'train': [
-                1, 3, 5, 6, 7, 8, 11, 14, 15, 16, 17,
-                19, 21, 22, 23, 25, 26, 27, 28, 29, 30
-            ],
-            # 1/3 of test set = 10% of all subjects
-            'validation': [
-                4, 12, 20
-            ],
-            # 2/3 of original test set = 20% of all subjects
-            'test': [
-                2, 9, 10, 13, 18, 24
-            ]
-        }
-
-        self.split(subjects)
 
 
     def read_data(self):
