@@ -89,7 +89,16 @@ Available Datasets specifications are
 
 ## Suffix options 
 
-Only one suffix option can be used.
+- Separation and combination suffix options can not be used simultaneously.
+- LOSOCV and ratio suffix options can not be used simultaneously.
+
+Examples of acceptable combinations are
+```
+xxxx-combination_0_1_2-losocv_1
+xxxx-combination_0_1_2-ratio_70_10_20
+xxxx-separation_0_1_2-losocv_1
+xxxx-separation_0_1_2-ratio_70_10_20
+```
 
 ### Separation sensor option
 If add the following suffix for a dataset specification, the sensors included in the dataset are handled indivisually.
@@ -122,6 +131,14 @@ For example, if \['pamap2-losocv_1'\] is specified, the data of subject 1 is use
 The following sort is suitable to run LOSOCV, \[f'pamap2-losocv_{i}' for i in range(1, 10)\].
 
 Several DataReaders do not support this LOSOCV option, such as the DataReader for the Opportunity. 
+
+### Ratio option
+
+```-ratio_Tr_V_Ts```
+
+**NOTE: NOT RECOMMEMDED. This option makes meaningless results. It has remained to keep compatibility with several studies.**
+
+For example, if \['pamap2-ratio_70_10_20'\] is specified, 70 % of the data is selected randomly for training, 10 % for validation, and 20 % for testing.
 
 
 ## Links for the datasets
