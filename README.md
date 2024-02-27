@@ -186,7 +186,9 @@ Please see this to check how to locate downloaded dataset files.
 # Related repositories @ 2023/10/13
 - rTsfNet: https://github.com/eno-lab/rTsfNet
 
-Please let us know to add your repository to this list!!
+Please let us know so we can add your repository to this list!!
+
+If so, please make [a new issue](https://github.com/eno-lab/IMU-based-HAR-benchmark/issues) with the "Model registration request" label with the URL and so on.
 
 # How to add your models
 Please manage your models with a separate repository with add-on style (copy and combined to this benchmark).
@@ -213,6 +215,8 @@ An exmaple is rTsfNet. Please looking into https://github.com/eno-lab/rTsfNet .
 
 # Performance comparison
 Pleaase see [REGISTERED PERFORMANCES](https://github.com/eno-lab/IMU-based-HAR-benchmark/wiki)
+
+If you would like to register your benchmark results, please make [a new issue](https://github.com/eno-lab/IMU-based-HAR-benchmark/issues) with the "Benchmark result registration request" label with evidence, such as trained models and reports.
 
 We are welcome to register the performance of new algorithms. Please let us know.
 
