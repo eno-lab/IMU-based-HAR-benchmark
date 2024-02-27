@@ -144,7 +144,13 @@ Several DataReaders do not support this LOSOCV option, such as the DataReader fo
 
 ```-ratio_Tr_V_Ts```
 
-**NOTE: NOT RECOMMEMDED. This option makes meaningless results. It has remained to keep compatibility with several studies.**
+**DO NOT USE IT**
+
+**DO NOT USE IT**
+
+**DO NOT USE IT**
+
+**This option makes meaningless results. It has remained to keep compatibility with several studies.**
 
 For example, if \['pamap2-ratio_70_10_20'\] is specified, 70 % of the data is selected randomly for training, 10 % for validation, and 20 % for testing.
 
