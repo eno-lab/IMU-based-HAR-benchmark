@@ -23,10 +23,11 @@ parser.add_argument('--class_weight', action='store_true')
 parser.add_argument('--epochs', type=int, default=350)
 parser.add_argument('--boot_strap_epochs', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--patience', type=int, default=50)
+parser.add_argument('--early_stopping_patience', type=int, default=50)
 parser.add_argument('--shuffle_on_train', action='store_true')
 parser.add_argument('--lr_magnif', type=float, default=1)
 parser.add_argument('--lr_magnif_on_plateau', type=float, default=0.8)
+parser.add_argument('--reduce_lr_on_plateau_patience', type=int, default=10)
 parser.add_argument('--lr_auto_adjust_based_bs', action='store_true')
 parser.add_argument('--mixed_precision', default=None)
 parser.add_argument('--pretrained_model', default=None)
@@ -37,6 +38,8 @@ parser.add_argument('--optuna', action='store_true')
 parser.add_argument('--optuna_study_suffix', default='')
 parser.add_argument('--optuna_num_of_trial', type=int, default=10)
 parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
+parser.add_argument('--tensorboard', action='store_true')
+
 args = parser.parse_args()
 
 import optuna
@@ -50,7 +53,8 @@ total_true = []
 
 epochs = args.epochs
 batch_size = args.batch_size
-patience = args.patience
+early_stopping_patience = args.early_stopping_patience
+reduce_lr_on_plateau_patience = args.reduce_lr_on_plateau_patience
 shuffle_on_train = args.shuffle_on_train
 lr_magnif = args.lr_magnif
 downsampling_ignore_rate = args.downsampling_ignore_rate
@@ -205,8 +209,11 @@ for dataset in datasets:
                 print('###############################################################################')
                 print(f"Training {model_name} : {datetime.now()}")
                 print('###############################################################################')
-                log_dir = os.path.abspath(os.path.join('logs', 'fit', dataset, file_prefix))
-                #save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_tf")) # too slow
+                log_dir = None
+                if args.tensorboard:
+                    log_dir = os.path.abspath(os.path.join('logs', 'fit', dataset, file_prefix))
+                    os.makedirs(log_dir, exist_ok=True)
+
                 save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.h5")) # faster
 
                 input_shape = X_train.shape
@@ -250,13 +257,14 @@ for dataset in datasets:
                         if framework_name == 'tensorflow':
                             try:
                                 # Train and evaluate the current model on the dataset. Save the trained models and histories
-                                model, history, best_model_path = evaluate_model(model, X_train, y_train, X_val, y_val, patience=patience, 
+                                model, history, best_model_path = evaluate_model(model, X_train, y_train, X_val, y_val,
+                                                                early_stopping_patience=early_stopping_patience, 
                                                                 boot_strap_epochs = args.boot_strap_epochs,
                                                                 _epochs=epochs, _save_name=save_name, _log_dir=log_dir,
                                                                 shuffle_on_train = shuffle_on_train if pass_n == 1 else True,
-                                                                batch_size = batch_size,
-                                                                no_weight = not clw,
-                                                                lr_magnif_on_plateau = args.lr_magnif_on_plateau)
+                                                                batch_size = batch_size, no_weight = not clw,
+                                                                lr_magnif_on_plateau = args.lr_magnif_on_plateau,
+                                                                reduce_lr_on_plateau_patience=reduce_lr_on_plateau_patience)
 
 
                                 print('###############################################################################')

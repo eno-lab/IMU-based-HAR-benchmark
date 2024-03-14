@@ -181,28 +181,40 @@ def transform_y(y, nr_classes, dataset):
 
 
 # Model and dataset evaluation
-def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, patience=10, boot_strap_epochs=0,
-                   batch_size=64, _save_name='trained_models/please_provide_a_name.h5', _log_dir='logs/fit', no_weight=True, shuffle_on_train=False, lr_magnif_on_plateau=0.8):
+def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, 
+                   _epochs=20, early_stopping_patience=10, boot_strap_epochs=0,
+                   batch_size=64, _save_name='trained_models/please_provide_a_name.h5',
+                   _log_dir='logs/fit', no_weight=True, shuffle_on_train=False,
+                   lr_magnif_on_plateau=0.8,
+                   reduce_lr_on_plateau_patience=10):
     """
     Returns the best trained model and history objects of the currently provided train & test set
     """
-    early_stopping_monitor = EarlyStopping(patience=patience, start_from_epoch=boot_strap_epochs)
+
+    callbacks = []
+
+    callbacks.append(EarlyStopping(patience=early_stopping_patience, 
+                                   start_from_epoch=boot_strap_epochs))
 
     checkpoint_path = _save_name
-    checkpoint_dir = os.path.dirname(checkpoint_path)
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+
 
     # Create checkpoint callback
-    cp_callback = ModelCheckpoint(checkpoint_path,
-                                  monitor='val_loss',
-                                  save_best_only=True,
-                                  save_weights_only=False,
-                                  verbose=0)
+    callbacks.append(ModelCheckpoint(checkpoint_path,
+                                     monitor='val_loss',
+                                     save_best_only=True,
+                                     save_weights_only=False,
+                                     verbose=0))
     # Tensorboard Callback
-    tensorboard_callback = TensorBoard(log_dir=_log_dir, histogram_freq=1)
+    if _log_dir is not None:
+        callbacks.append(TensorBoard(log_dir=_log_dir, histogram_freq=1))
 
     # Reduce Learning rate after plateau
-    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=lr_magnif_on_plateau, patience=10,
-                                  min_lr=0.0000001, verbose=1)
+    callbacks.append(ReduceLROnPlateau(monitor='loss', 
+                                       factor=lr_magnif_on_plateau,
+                                       patience=reduce_lr_on_plateau_patience,
+                                       min_lr=0.00000001, verbose=1))
 
     class_weight = {}
     def calc_cl_w():
@@ -231,7 +243,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, _epochs=20, pat
                          shuffle=shuffle_on_train,
                          use_multiprocessing=True,
                          class_weight = class_weight,
-                         callbacks=[cp_callback, tensorboard_callback, early_stopping_monitor, reduce_lr])
+                         callbacks=callbacks)
     return _model, history, checkpoint_path
 
 

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import sklearn.model_selection
 from .utils import interp_nans, to_categorical
+from .utils import parse_suffix_options as _parse_suffix_options
 
 
 class DataReader:
@@ -111,7 +112,7 @@ class DataReader:
 
     def save_np_cache(self):
         os.makedirs(os.path.join(self.datapath, 'np_cache'), exist_ok=True)
-        np.savez(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.npz'), 
+        np.savez_compressed(os.path.join(self.datapath, 'np_cache', f'{self.dataset}.npz'), 
                 X_train=self._X_train,
                 X_valid=self._X_valid,
                 X_test=self._X_test,
@@ -358,58 +359,7 @@ class DataReader:
 
 
     def parse_suffix_options(self):
-        options = self.dataset.split('-')
-        dataset_origin = self.dataset_origin
-
-        flags = {}
-        remaining = []
-
-        def check_duplicated(opt):
-            if f'is_{opt}' in flags and flags[f'is_{opt}']:
-                raise ValueError('duplicated {opt} suffix: {self.dataset}')
-            flags[f'is_{opt}'] = True
-
-        for ix, option in enumerate(options):
-            if option == self.dataset_origin:
-                remaining.append(ix)
-                continue 
-
-            ratio_re_match = re.match('^ratio_(\d+)_(\d+)_(\d+)$', option)
-            if ratio_re_match is not None:
-                check_duplicated('ratio')
-                flags['train_ratio'] = float(ratio_re_match.groups()[0])
-                flags['valid_ratio'] = float(ratio_re_match.groups()[1])
-                flags['test_ratio']  = float(ratio_re_match.groups()[2])
-            elif option.startswith(f'losocv_'):
-                check_duplicated('losocv')
-                flags['losocv_n'] = int(option[len('losocv_'):])
-            elif option.startswith('separation'):
-                check_duplicated('separation')
-                with_sid = False
-                if option.endswith('_with_sid'):
-                    with_sid = True
-                    option = option[0:-len('_with_sid')]
-
-                if option.startswith(f'separation_'):
-                    sensor_ids = [int(s) for s in option[len(f'separation_'):].split("_")]
-
-                flags['sep_sids'] = sensor_ids
-                flags['sep_with_sid'] = with_sid 
-
-            elif option.startswith('combination'):
-                check_duplicated('combination')
-                with_sid = False
-                if option.endswith('_with_sid'):
-                    with_sid = True
-                    option = option[0:-len('_with_sid')]
-
-                if option.startswith(f'combination_'):
-                    sensor_ids = [int(s) for s in option[len(f'combination_'):].split("_")]
-
-                flags['cmb_sids'] = sensor_ids
-                flags['cmb_with_sid'] = with_sid
-            else:
-                remaining.append(ix)
+        dataset_without_flags, flags = _parse_suffix_options(self.dataset, self.dataset_origin)
 
         def check_flag(opt):
             return f'is_{opt}' in flags and flags[f'is_{opt}']
@@ -423,7 +373,7 @@ class DataReader:
         elif check_flag('ratio') and check_flag('losocv'):
             raise ValueError(f'Only one of ratio and losocv suffix options can be set: {self.dataset}')
 
-        return '-'.join([options[ix] for ix in remaining]), flags
+        return dataset_without_flags, flags
 
 
     def parse_and_run_data_split_rule(self):
