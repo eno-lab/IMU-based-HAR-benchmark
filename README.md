@@ -43,6 +43,7 @@ optional arguments:
   --optuna_study_suffix OPTUNA_STUDY_SUFFIX                 # study name suffix on optuna
   --optuna_num_of_trial OPTUNA_NUM_OF_TRIAL                 # num of trial of optuna
   --downsampling_ignore_rate RATE                           # ignoring rate: 0<= rate < 1. default 0. E.g., if 0.3 is set for 100 samples, 70 samples are selected uniformly.
+  --tensorboard                                             # enable TensorBoard outputs to ./logs directory.
 
 environment variable
   CUDA_VISIBLE_DEVICES=N                                    # GPU selection. -1 disable GPU.
