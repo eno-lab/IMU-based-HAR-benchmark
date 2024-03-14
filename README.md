@@ -58,6 +58,11 @@ CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'tsf
 ```
 The last two examples requiring the rTsfNet model. Plz see [Related repositories] section.
 
+## Note
+Tensorflow 2.15 has [a bug](https://github.com/tensorflow/tensorflow/issues/62607) on LayerNormalization.
+If you evaluate tensorflow models including LayerNormalization,  
+please use the other versions, such as 2.14, or set 1e-7 for the epsilon attribute of LayerNormalization.
+
 # Available Dataset
 DATASETS is handled via 'eval'.
 
@@ -86,6 +91,7 @@ Available Datasets specifications are
 - ['mighar-offset_calib']                           # Using Offset calibrated data instead of raw data.
 - ['uschad']                                        
 - ['motion_sense']                                  
+- ['sho']                                           
 ```
 
 ## Suffix options 
@@ -100,6 +106,8 @@ xxxx-combination_0_1_2-ratio_70_10_20
 xxxx-separation_0_1_2-losocv_1
 xxxx-separation_0_1_2-ratio_70_10_20
 ```
+### Note
+The combination and separation sensor options can be used to select a single sensor from many. E.g., \['pamap2-separation\_0'\] and \['pamap2-combination\_0'\].
 
 ### Separation sensor option
 If add the following suffix for a dataset specification, the sensors included in the dataset are handled indivisually.
@@ -109,7 +117,7 @@ If add the following suffix for a dataset specification, the sensors included in
 For example, if \['pamap2-separation'\] is specified, since the pamap2 including three sensors, three samples are generated on time _t_.
 In contrast to that, if \['pamap2'\] is specified, one sample including data of the three sensors is generated on time _t_.
 If \['pamap2-separation\_0\_2'\] is specified, two samples from sensors 0 and 2 are generated on time _t_.
-If \['pamap2-separation\_with\_id'\] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
+If \['pamap2-separation\_with\_sid'\] is specified, three samples are generated on time _t_; however, each sample has a sensor ID value, such as 0, 1, and 2, on an additional channel placed on the last. 
 The last channel is filled by an identical value.
 This extra values should be removed at input mapping phases of DNN.
 
@@ -119,7 +127,7 @@ If add the following suffix for a dataset specification, samples generated for t
 ```-combination_0_1_2_3...[_with_sid]```
 
 For example, if \['pamap2-combination\_0\_2'\] is specified, since the pamap2 including three sensors, generated sampels are consists of the values from these two specified sensors.
-If \['pamap2--combination\_0\_2\_with\_id'\] is specified, each sample has sensor ID values, such as 0 and 2, for each axis.
+If \['pamap2--combination\_0\_2\_with\_sid'\] is specified, each sample has sensor ID values, such as 0 and 2, for each axis.
 The sensor IDs are placed on a extra entry of window. For example, if the data has a shape [100, 256, 6], meaning 100 samples with 256 window length with 6 channels, the shape will be changed for [100, 25*7*, 6]. 
 The extra entries placed on \[:, 256, :\] have sensor ID values. For example, \[0, 0, 0, 2, 2, 2\]. 
 This extra values should be removed at input mapping phases of DNN.
@@ -137,10 +145,15 @@ Several DataReaders do not support this LOSOCV option, such as the DataReader fo
 
 ```-ratio_Tr_V_Ts```
 
-**NOTE: NOT RECOMMEMDED. This option makes meaningless results. It has remained to keep compatibility with several studies.**
+**DO NOT USE IT**
+
+**DO NOT USE IT**
+
+**DO NOT USE IT**
+
+**This option makes meaningless results. It has remained to keep compatibility with several studies.**
 
 For example, if \['pamap2-ratio_70_10_20'\] is specified, 70 % of the data is selected randomly for training, 10 % for validation, and 20 % for testing.
-
 
 ## Links for the datasets
 - [Daphnet](https://doi.org/10.24432/C56K78)
@@ -153,10 +166,13 @@ For example, if \['pamap2-ratio_70_10_20'\] is specified, 70 % of the data is se
 - [MIG-HAR](https://github.com/eno-lab/Meshed_IMU_Garment_HAR_Dataset)
 - [USC-HAD](https://sipi.usc.edu/had/)
 - [MotionSense](https://github.com/mmalekzadeh/motion-sense)
+- [SHO](https://www.researchgate.net/publication/266384007_Sensors_Activity_Recognition_DataSet)
 
-## How to locate the downloaded files
+## How to locate the downloaded dataset files
 
-Please see [dataset\_file\_list.txt](dataset_file_list.txt).
+Please put downloaded or decompressed datasets into the dataset directory as is, such as via drag and drop.
+The expected file paths are listed in [dataset\_file\_list.txt](dataset_file_list.txt).
+Please see this to check how to locate downloaded dataset files.
 
 # Directories
 ```
@@ -171,7 +187,9 @@ Please see [dataset\_file\_list.txt](dataset_file_list.txt).
 # Related repositories @ 2023/10/13
 - rTsfNet: https://github.com/eno-lab/rTsfNet
 
-Please let us know to add your repository to this list!!
+Please let us know so we can add your repository to this list!!
+
+If so, please make [a new issue](https://github.com/eno-lab/IMU-based-HAR-benchmark/issues) with the "Model registration request" label with the URL and so on.
 
 # How to add your models
 Please manage your models with a separate repository with add-on style (copy and combined to this benchmark).
@@ -198,6 +216,8 @@ An exmaple is rTsfNet. Please looking into https://github.com/eno-lab/rTsfNet .
 
 # Performance comparison
 Pleaase see [REGISTERED PERFORMANCES](https://github.com/eno-lab/IMU-based-HAR-benchmark/wiki)
+
+If you would like to register your benchmark results, please make [a new issue](https://github.com/eno-lab/IMU-based-HAR-benchmark/issues) with the "Benchmark result registration request" label with evidence, such as trained models and reports.
 
 We are welcome to register the performance of new algorithms. Please let us know.
 
