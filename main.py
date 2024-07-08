@@ -15,6 +15,15 @@ from datareader import gen_datareader
 
 import argparse  
 
+def zero_one_float_type(arg):
+    try:
+        f = float(arg)
+    except ValueError:    
+        raise argparse.ArgumentTypeError("Must be a floating point number")
+    if f < 0 or f > 1:
+        raise argparse.ArgumentTypeError("Argument must be between 0 and 1")
+    return f
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--datasets', required=True)
 parser.add_argument('--model_name', required=True)
@@ -32,6 +41,7 @@ parser.add_argument('--lr_auto_adjust_based_bs', action='store_true')
 parser.add_argument('--mixed_precision', default=None)
 parser.add_argument('--pretrained_model', default=None)
 parser.add_argument('--two_pass', action='store_true')
+parser.add_argument('--label_smoothing', type=zero_one_float_type, default=0.0, help='0 is disable, min=0, max=1')
 parser.add_argument('--skip_train', action='store_true')
 parser.add_argument('--best_selection_metrics', default='mf1')
 parser.add_argument('--optuna', action='store_true')
@@ -39,6 +49,7 @@ parser.add_argument('--optuna_study_suffix', default='')
 parser.add_argument('--optuna_num_of_trial', type=int, default=10)
 parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
 parser.add_argument('--tensorboard', action='store_true')
+parser.add_argument('--use_data_normalization', action='store_true')
 
 args = parser.parse_args()
 
@@ -142,6 +153,10 @@ for dataset in datasets:
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = dr.gen_ispl_style_set()
         recommended_out_loss, recommended_out_activ = dr.recommended_out_loss, dr.recommended_out_activ
 
+    if framework_name == 'tensorflow':
+        if args.label_smoothing > 0:
+            recommended_out_loss = tf.keras.losses.CategoricalCrossentropy(label_smoothing=args.label_smoothing),
+
 
     if downsampling_ignore_rate > 0:
         def downsampling(X, y):
@@ -152,6 +167,43 @@ for dataset in datasets:
         X_train, y_train = downsampling(X_train, y_train)
         X_val, y_val = downsampling(X_val, y_val)
         X_test, y_test = downsampling(X_test, y_test)
+
+    normalization_mean = None
+    normalization_std = None
+    if args.use_data_normalization:
+
+        # To check performance of mobileHART with horiginal nomalization
+        #if dataset == 'ucihar' and model_name == 'sample.mobile_hart_xs':
+        #    combined = np.concatenate([X_train, X_val, X_test], axis=0)
+        #    acc_mean = np.mean(combined[:,:,:3])
+        #    acc_std  = np.std(combined[:,:,:3])
+        #    gyro_mean = np.mean(combined[:,:,3:])
+        #    gyro_std  = np.std(combined[:,:,3:])
+        #    X_train[:,:,:3] = (X_train[:,:,:3]-acc_mean)/acc_std
+        #    X_val[:,:,:3] = (X_val[:,:,:3]-acc_mean)/acc_std
+        #    X_test[:,:,:3] = (X_test[:,:,:3]-acc_mean)/acc_std
+        #    X_train[:,:,3:] = (X_train[:,:,3:]-gyro_mean)/gyro_std
+        #    X_val[:,:,3:] = (X_val[:,:,3:]-gyro_mean)/gyro_std
+        #    X_test[:,:,3:] = (X_test[:,:,3:]-gyro_mean)/gyro_std
+        #    _mean = [acc_mean, gyro_mean]
+        #    _std = [acc_std, gyro_std]
+        #else:
+        #    _sp = X_train.shape
+        #    _mean = np.mean(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
+        #    _std  = np.std(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
+        #    X_train = (X_train-_mean)/_std
+        #    X_val   = (X_val-_mean)/_std
+        #    X_test  = (X_test-_mean)/_std
+
+        _sp = X_train.shape
+        _mean = np.mean(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
+        _std  = np.std(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
+        X_train = (X_train-_mean)/_std
+        X_val   = (X_val-_mean)/_std
+        X_test  = (X_test-_mean)/_std
+
+        normalization_mean = _mean
+        normalization_std = _std
 
     _file_prefix = file_prefix
 
@@ -205,6 +257,19 @@ for dataset in datasets:
                              f"{pd.DataFrame(y_test.mean(axis=0) * 100, index=labels, columns=['frequency'])}\n\n")
 
                 start = time()
+
+                if normalization_mean is not None:
+                    report.write('############################################\n\n')
+                    report.write("Data Normalization: \n")
+                    report.write(f"Means: {normalization_mean} \n")
+                    report.write(f"STDs: {normalization_std} \n\n")
+
+                    print('############################################\n')
+                    print("Data Normalization")
+                    print(f"Means: {normalization_mean}")
+                    print(f"STDs: {normalization_std}\n")
+                    print('############################################\n')
+
 
                 print('###############################################################################')
                 print(f"Training {model_name} : {datetime.now()}")
