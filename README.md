@@ -184,6 +184,7 @@ Please see this to check how to locate downloaded dataset files.
 - trained_models   # trained models/weights are stored.
 - dataset          # please put the dataset as-is downloaded from their website. plz see dataset_file_list.txt.
 - opt_app          # optional utilities. Please see the header of the files.
+- models           # Models should be stored here. In this repository, there are several sample models and the models used in iSPLInception.
 ```
 
 # Related repositories @ 2023/10/13
