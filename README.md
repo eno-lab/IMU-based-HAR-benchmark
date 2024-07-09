@@ -51,9 +51,11 @@ environment variable
 
 ## Examples
 ```
-CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'ispl.ispl_inception'
-CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'sample.mch_cnn_gru' --patience 50 --epochs 600
-CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['opportunity']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'ispl.ispl_inception' --shuffle_on_train
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'sample.mch_cnn_gru' --patience 50 --epochs 600 --shuffle_on_train
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 'sample.deep_conv_lstm' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 'sample.mobile_hart_xs' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['opportunity']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --optuna --optuna_study_suffix 20231101 --optuna_num_of_trial 600
 ```
 The last two examples requiring the rTsfNet model. Plz see [Related repositories] section.
