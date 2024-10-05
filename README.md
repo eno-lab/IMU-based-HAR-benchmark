@@ -12,6 +12,9 @@ We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publ
 ## NOTE
 The DOI and citation text will be updated for formal one. So, please check here before you make a submission.
 
+# Recruit
+**Someone will add a PyTorch extension for it.**
+
 # How to run
 ```
 usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model_name MODEL_NAME [--ispl_datareader] [--class_weight] [--epochs EPOCHS] 
