@@ -50,6 +50,7 @@ parser.add_argument('--optuna_num_of_trial', type=int, default=10)
 parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
 parser.add_argument('--tensorboard', action='store_true')
 parser.add_argument('--use_data_normalization', action='store_true')
+parser.add_argument('--show_epoch_time_detail', action='store_true')
 
 args = parser.parse_args()
 
@@ -329,6 +330,7 @@ for dataset in datasets:
                                                             batch_size = batch_size, no_weight = not clw,
                                                             lr_magnif_on_plateau = args.lr_magnif_on_plateau,
                                                             reduce_lr_on_plateau_patience=reduce_lr_on_plateau_patience,
+                                                            show_epoch_time_detail = args.show_epoch_time_detail,
                                                             framework_name=framework_name)
 
 

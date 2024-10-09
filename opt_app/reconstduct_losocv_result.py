@@ -66,10 +66,11 @@ for file in os.listdir(base_dir):
                                         labels=np.arange(n_classes),
                                         output_dict=True, 
                                         zero_division=0.0)
+            acc = np.sum(y_true == y_pred)/y_true.shape[0]
 
             score = {'mf1': clr['macro avg']['f1-score'], 
                     'wf1': clr['weighted avg']['f1-score'],
-                    'acc': clr['accuracy'],
+                    'acc': acc,
                     #'loss': scores[0],
                     'cm': cm}
 

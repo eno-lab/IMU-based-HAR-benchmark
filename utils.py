@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import stats
+from tensorflow import keras
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical
@@ -187,6 +188,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                    _log_dir='logs/fit', no_weight=True, shuffle_on_train=False,
                    lr_magnif_on_plateau=0.8,
                    reduce_lr_on_plateau_patience=10,
+                   show_epoch_time_detail=False,
                    framework_name='tensorflow'):
     """
     Returns the best trained model and history objects of the currently provided train & test set
@@ -209,11 +211,43 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         print(f'{key=}, {class_weight[key]=}')
     print(class_weight)
 
+    time_callback = None
+    if show_epoch_time_detail:
+        import time
+        import array
+        class TimeHistory(keras.callbacks.Callback):
+            def on_train_begin(self, logs={}):
+                self.train_batch_times = np.zeros((2,100000000), dtype=int)
+                self.train_count = 0
+
+            def on_test_begin(self, logs={}):
+                self.valid_batch_times = np.zeros((2,100000000), dtype=int)
+                self.valid_count = 0
+
+            def on_train_batch_begin(self, batch, logs=None):
+                self.train_batch_times[0, self.train_count] = time.perf_counter_ns()
+
+            def on_train_batch_end(self, batch, logs=None):
+                self.train_batch_times[1, self.train_count] = time.perf_counter_ns()
+                self.train_count += 1
+
+            def on_test_batch_begin(self, batch, logs=None):
+                self.valid_batch_times[0, self.valid_count] = time.perf_counter_ns()
+
+            def on_test_batch_end(self, batch, logs=None):
+                self.valid_batch_times[1, self.valid_count] = time.perf_counter_ns()
+                self.valid_count += 1
+
+        time_callback = TimeHistory()
+
     checkpoint_path = _save_name
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
     if framework_name == 'tensorflow':
         callbacks = []
+        if time_callback is not None:
+            callbacks.append(time_callback)
+
         callbacks.append(EarlyStopping(patience=early_stopping_patience, 
                                        start_from_epoch=boot_strap_epochs))
 
@@ -274,15 +308,22 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
 
         true_sum_data = torch.tensor(0)
         loss_sum_data = torch.tensor(0)
-        for epoch in range (epochs):
+        if time_callback is not None:
+            time_callback.on_train_begin()
 
+        for epoch in range (epochs):
             true_sum_data *= 0
             loss_sum_data *= 0
             _model.prepare_before_epoch(epoch)
             for step, (x,y) in enumerate(train_loader):
                 batch_x = x.cuda()
                 batch_y = y.cuda()
+
+                if time_callback is not None:
+                    time_callback.on_train_batch_begin(step)
                 output_bc = _model(batch_x)[0]
+                if time_callback is not None:
+                    time_callback.on_train_batch_end(step)
                 
                 # cal the sum of pre loss per batch 
                 loss = loss_function(output_bc, batch_y)
@@ -296,12 +337,15 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                 true_num_bc = torch.sum(pred_bc == y).data
                 true_sum_data = true_sum_data + true_num_bc
 
+
             loss_train = loss_sum_data.data.item()/y_data.shape[0]
             acc_train = true_sum_data.data.item()/y_data.shape[0]
 
             # validation
             _model.eval()
-            loss_valid, acc_valid, _ = calc_loss_acc_output(_model, loss_function, _X_test, _y_test)
+            loss_valid, acc_valid, _ = calc_loss_acc_output(_model, loss_function, 
+                                                            _X_test, _y_test,
+                                                            time_callback)
             _model.train()
 
             # update lr
@@ -347,6 +391,18 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
 
     else:
         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
+
+    if time_callback is not None:
+        train_batch_time = np.median(np.diff(time_callback.train_batch_times[:,:time_callback.train_count], axis=0))
+        valid_batch_time = np.median(np.diff(time_callback.valid_batch_times[:,:time_callback.valid_count], axis=0))
+        for _ in range(5):
+            print('\n')
+        _model.summary()
+        print(f'{train_batch_time=} ns')
+        print(f'{valid_batch_time=} ns')
+
+        for _ in range(5):
+            print('\n')
 
     return _model, history, checkpoint_path
 

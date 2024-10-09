@@ -64,7 +64,7 @@ class Pamap2(DataReader):
 
     def split_losocv(self, n, label_map = None):
         n -=1
-        assert 0 <= n < 8
+        assert 0 <= n <= 8
 
         subjects = {}
         subjects['test'] = [n]
