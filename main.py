@@ -119,7 +119,7 @@ if framework_name == 'tensorflow':
     if 'plot_metrics' not in globals():
         from utils import plot_metrics
 
-elif framework_name == 'pytoroch':
+elif framework_name == 'pytorch':
     import torch
     raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
 else:
@@ -172,29 +172,6 @@ for dataset in datasets:
     normalization_mean = None
     normalization_std = None
     if args.use_data_normalization:
-
-        # To check performance of mobileHART with horiginal nomalization
-        #if dataset == 'ucihar' and model_name == 'sample.mobile_hart_xs':
-        #    combined = np.concatenate([X_train, X_val, X_test], axis=0)
-        #    acc_mean = np.mean(combined[:,:,:3])
-        #    acc_std  = np.std(combined[:,:,:3])
-        #    gyro_mean = np.mean(combined[:,:,3:])
-        #    gyro_std  = np.std(combined[:,:,3:])
-        #    X_train[:,:,:3] = (X_train[:,:,:3]-acc_mean)/acc_std
-        #    X_val[:,:,:3] = (X_val[:,:,:3]-acc_mean)/acc_std
-        #    X_test[:,:,:3] = (X_test[:,:,:3]-acc_mean)/acc_std
-        #    X_train[:,:,3:] = (X_train[:,:,3:]-gyro_mean)/gyro_std
-        #    X_val[:,:,3:] = (X_val[:,:,3:]-gyro_mean)/gyro_std
-        #    X_test[:,:,3:] = (X_test[:,:,3:]-gyro_mean)/gyro_std
-        #    _mean = [acc_mean, gyro_mean]
-        #    _std = [acc_std, gyro_std]
-        #else:
-        #    _sp = X_train.shape
-        #    _mean = np.mean(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
-        #    _std  = np.std(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
-        #    X_train = (X_train-_mean)/_std
-        #    X_val   = (X_val-_mean)/_std
-        #    X_test  = (X_test-_mean)/_std
 
         _sp = X_train.shape
         _mean = np.mean(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
@@ -488,7 +465,7 @@ for dataset in datasets:
 
                     if framework_name == 'tensorflow':
                         tf.keras.backend.clear_session()
-                    elif framework_name == 'pytoroch':
+                    elif framework_name == 'pytorch':
                         torch.cuda.empty_cache()
                     else:
                         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
