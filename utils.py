@@ -186,35 +186,11 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                    batch_size=64, _save_name='trained_models/please_provide_a_name.h5',
                    _log_dir='logs/fit', no_weight=True, shuffle_on_train=False,
                    lr_magnif_on_plateau=0.8,
-                   reduce_lr_on_plateau_patience=10):
+                   reduce_lr_on_plateau_patience=10,
+                   framework_name='tensorflow'):
     """
     Returns the best trained model and history objects of the currently provided train & test set
     """
-
-    callbacks = []
-
-    callbacks.append(EarlyStopping(patience=early_stopping_patience, 
-                                   start_from_epoch=boot_strap_epochs))
-
-    checkpoint_path = _save_name
-    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-
-
-    # Create checkpoint callback
-    callbacks.append(ModelCheckpoint(checkpoint_path,
-                                     monitor='val_loss',
-                                     save_best_only=True,
-                                     save_weights_only=False,
-                                     verbose=0))
-    # Tensorboard Callback
-    if _log_dir is not None:
-        callbacks.append(TensorBoard(log_dir=_log_dir, histogram_freq=1))
-
-    # Reduce Learning rate after plateau
-    callbacks.append(ReduceLROnPlateau(monitor='loss', 
-                                       factor=lr_magnif_on_plateau,
-                                       patience=reduce_lr_on_plateau_patience,
-                                       min_lr=0.00000001, verbose=1))
 
     class_weight = {}
     def calc_cl_w():
@@ -233,17 +209,145 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         print(f'{key=}, {class_weight[key]=}')
     print(class_weight)
 
-    # Training the model
-    history = _model.fit(_X_train,
-                         _y_train,
-                         batch_size=batch_size,
-                         validation_data=(_X_test, _y_test),
-                         epochs=_epochs,
-                         verbose=1,
-                         shuffle=shuffle_on_train,
-                         use_multiprocessing=True,
-                         class_weight = class_weight,
-                         callbacks=callbacks)
+    checkpoint_path = _save_name
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+
+    if framework_name == 'tensorflow':
+        callbacks = []
+        callbacks.append(EarlyStopping(patience=early_stopping_patience, 
+                                       start_from_epoch=boot_strap_epochs))
+
+        # Create checkpoint callback
+        callbacks.append(ModelCheckpoint(checkpoint_path,
+                                         monitor='val_loss',
+                                         save_best_only=True,
+                                         save_weights_only=False,
+                                         verbose=0))
+        # Tensorboard Callback
+        if _log_dir is not None:
+            callbacks.append(TensorBoard(log_dir=_log_dir, histogram_freq=1))
+
+        # Reduce Learning rate after plateau
+        callbacks.append(ReduceLROnPlateau(monitor='loss', 
+                                           factor=lr_magnif_on_plateau,
+                                           patience=reduce_lr_on_plateau_patience,
+                                           min_lr=0.00000001, verbose=1))
+
+        # Training the model
+        history = _model.fit(_X_train,
+                             _y_train,
+                             batch_size=batch_size,
+                             validation_data=(_X_test, _y_test),
+                             epochs=_epochs,
+                             verbose=1,
+                             shuffle=shuffle_on_train,
+                             use_multiprocessing=True,
+                             class_weight = class_weight,
+                             callbacks=callbacks)
+
+    elif framework_name == 'pytorch':
+        raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+        import torch.utils.data as Data
+        from torch_utils import calc_loss_acc_output
+
+        torch_dataset = Data.TensorDataset(torch.FloatTensor(_X_train), torch.tensor(_y_train).long())
+        train_loader = Data.DataLoader(dataset = torch_dataset,
+                                       batch_size = batch_size,
+                                       shuffle = shuffle_on_train,
+                                       drop_last = _X_train.shape[0] % batch_size == 1
+                                       )
+
+
+        parameters = ContiguousParams(_model.parameters())
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                               'min', 
+                                                               factor=lr_magnif_on_plateau, 
+                                                               patience=reduce_lr_on_plateau_patience,
+                                                               min_lr=0.00000001, 
+                                                               verbose=True)
+        optimizer = _model.get_optimizer()
+        loss_function = _model.get_loss_function()
+        
+        start_time = time.time()
+        log_training_duration = []
+        best_val_loss = 1000000000
+
+        true_sum_data = torch.tensor(0)
+        loss_sum_data = torch.tensor(0)
+        for epoch in range (epochs):
+
+            true_sum_data *= 0
+            loss_sum_data *= 0
+            _model.prepare_before_epoch(epoch)
+            for step, (x,y) in enumerate(train_loader):
+                batch_x = x.cuda()
+                batch_y = y.cuda()
+                output_bc = _model(batch_x)[0]
+                
+                # cal the sum of pre loss per batch 
+                loss = loss_function(output_bc, batch_y)
+                loss_sum_data = loss_sum_data + loss_bc
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                pred_bc = torch.max(output_bc, 1)[1].data.cuda().squeeze()
+                true_num_bc = torch.sum(pred_bc == y).data
+                true_sum_data = true_sum_data + true_num_bc
+
+            loss_train = loss_sum_data.data.item()/y_data.shape[0]
+            acc_train = true_sum_data.data.item()/y_data.shape[0]
+
+            # validation
+            _model.eval()
+            loss_valid, acc_valid, _ = calc_loss_acc_output(_model, loss_function, _X_test, _y_test)
+            _model.train()
+
+            # update lr
+            scheduler.step(loss_train)
+            lr = optimizer.param_groups[0]['lr']
+
+            # log lr&train&validation loss&acc per epoch
+            lr_results.append(lr)
+            loss_train_results.append(loss_train)    
+            accuracy_train_results.append(acc_train)
+            loss_validation_results.append(loss_valid)    
+            accuracy_validation_results.append(acc_valid)
+
+            # print training process
+            print('Epoch:', (epoch+1), '|lr:', lr,
+                  '| train_loss:', loss_train, 
+                  '| train_acc:', accuracy_train, 
+                  '| validation_loss:', loss_validation, 
+                  '| validation_acc:', accuracy_validation)
+
+            # log training time 
+            per_training_duration = time.time() - start_time
+            log_training_duration.append(per_training_duration)
+
+            # save best model
+            if best_val_loss > loss_valid:
+                best_val_loss = loss_valid
+                torch.save(_model.state_dict(), checkpoint_path)
+
+            history = pd.DataFrame(data = np.zeros((EPOCH,5),dtype=np.float), 
+                                   columns=['train_acc','train_loss','val_acc','val_loss','lr'])
+            history['accuracy'] = accuracy_train_results
+            history['loss'] = loss_train_results
+            history['val_accuracy'] = accuracy_validation_results
+            history['val_loss'] = loss_validation_results
+            history['lr'] = lr_results
+
+            class HistoryWrapper:
+                history = history
+                epoch = list(range(1, epochs+1)
+
+            history = HistoryWrapper()
+
+    else:
+        raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
+
     return _model, history, checkpoint_path
 
 
