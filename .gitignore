@@ -174,3 +174,8 @@ images/*
 reports/*
 trained_models/*
 logs/*
+
+tmp*
+backup*
+*.db
+parallel*

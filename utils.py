@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import stats
+from tensorflow import keras
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical
@@ -186,7 +187,8 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                    batch_size=64, _save_name='trained_models/please_provide_a_name.h5',
                    _log_dir='logs/fit', no_weight=True, shuffle_on_train=False,
                    lr_magnif_on_plateau=0.8,
-                   reduce_lr_on_plateau_patience=10):
+                   reduce_lr_on_plateau_patience=10,
+                   show_epoch_time_detail=False):
     """
     Returns the best trained model and history objects of the currently provided train & test set
     """
@@ -196,9 +198,38 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
     callbacks.append(EarlyStopping(patience=early_stopping_patience, 
                                    start_from_epoch=boot_strap_epochs))
 
+    time_callback = None
+    if show_epoch_time_detail:
+        import time
+        import array
+        class TimeHistory(keras.callbacks.Callback):
+            def on_train_begin(self, logs={}):
+                self.train_batch_times = np.zeros((2,100000000), dtype=int)
+                self.train_count = 0
+
+            def on_test_begin(self, logs={}):
+                self.valid_batch_times = np.zeros((2,100000000), dtype=int)
+                self.valid_count = 0
+
+            def on_train_batch_begin(self, batch, logs=None):
+                self.train_batch_times[0, self.train_count] = time.perf_counter_ns()
+
+            def on_train_batch_end(self, batch, logs=None):
+                self.train_batch_times[1, self.train_count] = time.perf_counter_ns()
+                self.train_count += 1
+
+            def on_test_batch_begin(self, batch, logs=None):
+                self.valid_batch_times[0, self.valid_count] = time.perf_counter_ns()
+
+            def on_test_batch_end(self, batch, logs=None):
+                self.valid_batch_times[1, self.valid_count] = time.perf_counter_ns()
+                self.valid_count += 1
+
+        time_callback = TimeHistory()
+        callbacks.append(time_callback)
+
     checkpoint_path = _save_name
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-
 
     # Create checkpoint callback
     callbacks.append(ModelCheckpoint(checkpoint_path,
@@ -244,6 +275,19 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                          use_multiprocessing=True,
                          class_weight = class_weight,
                          callbacks=callbacks)
+
+    if time_callback is not None:
+        train_batch_time = np.median(np.diff(time_callback.train_batch_times[:,:time_callback.train_count], axis=0))
+        valid_batch_time = np.median(np.diff(time_callback.valid_batch_times[:,:time_callback.valid_count], axis=0))
+        for _ in range(5):
+            print('\n')
+        _model.summary()
+        print(f'{train_batch_time=} ns')
+        print(f'{valid_batch_time=} ns')
+
+        for _ in range(5):
+            print('\n')
+
     return _model, history, checkpoint_path
 
 
