@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from contiguous_params import ContiguousParams
 
 def get_config(dataset, lr_magnif=1):
     return {'n_hidden': 128,
