@@ -12,9 +12,6 @@ We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publ
 ## NOTE
 The DOI and citation text will be updated for formal one. So, please check here before you make a submission.
 
-# Recruit
-**Someone will add a PyTorch extension for it.**
-
 # How to run
 ```
 usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model_name MODEL_NAME [--ispl_datareader] [--class_weight] [--epochs EPOCHS] 
@@ -60,8 +57,12 @@ CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 's
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 'sample.mobile_hart_xs' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['opportunity']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --optuna --optuna_study_suffix 20231101 --optuna_num_of_trial 600
+
+# pyTorch sample
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'sample.torch_deep_conv_lstm' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'sample.if_conv_transformer.If_ConvTransformer_W' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
 ```
-The last two examples requiring the rTsfNet model. Plz see [Related repositories] section.
+The last two examples with model_name 'tsf' require the rTsfNet model. Please see the [Related repositories] section.
 
 ## Note
 Tensorflow 2.15 has [a bug](https://github.com/tensorflow/tensorflow/issues/62607) on LayerNormalization.
