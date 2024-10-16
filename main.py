@@ -50,6 +50,7 @@ parser.add_argument('--optuna_num_of_trial', type=int, default=10)
 parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
 parser.add_argument('--tensorboard', action='store_true')
 parser.add_argument('--use_data_normalization', action='store_true')
+parser.add_argument('--show_epoch_time_detail', action='store_true')
 
 args = parser.parse_args()
 
@@ -87,7 +88,6 @@ datasets = eval(args.datasets)
 model_name = args.model_name
 training_id = f'{time()*1000:.0f}'
 
-
 print("===============")
 print(f"{datasets=}")
 print(f"{model_name=}")
@@ -119,8 +119,12 @@ if framework_name == 'tensorflow':
     if 'plot_metrics' not in globals():
         from utils import plot_metrics
 
-elif framework_name == 'pytoroch':
-    raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+elif framework_name == 'pytorch':
+    if 'evaluate_model' not in globals():
+        from utils import evaluate_model
+    if 'plot_metrics' not in globals():
+        from utils import plot_metrics
+    import torch
 else:
     raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 # ...................................................................................#
@@ -171,29 +175,6 @@ for dataset in datasets:
     normalization_mean = None
     normalization_std = None
     if args.use_data_normalization:
-
-        # To check performance of mobileHART with horiginal nomalization
-        #if dataset == 'ucihar' and model_name == 'sample.mobile_hart_xs':
-        #    combined = np.concatenate([X_train, X_val, X_test], axis=0)
-        #    acc_mean = np.mean(combined[:,:,:3])
-        #    acc_std  = np.std(combined[:,:,:3])
-        #    gyro_mean = np.mean(combined[:,:,3:])
-        #    gyro_std  = np.std(combined[:,:,3:])
-        #    X_train[:,:,:3] = (X_train[:,:,:3]-acc_mean)/acc_std
-        #    X_val[:,:,:3] = (X_val[:,:,:3]-acc_mean)/acc_std
-        #    X_test[:,:,:3] = (X_test[:,:,:3]-acc_mean)/acc_std
-        #    X_train[:,:,3:] = (X_train[:,:,3:]-gyro_mean)/gyro_std
-        #    X_val[:,:,3:] = (X_val[:,:,3:]-gyro_mean)/gyro_std
-        #    X_test[:,:,3:] = (X_test[:,:,3:]-gyro_mean)/gyro_std
-        #    _mean = [acc_mean, gyro_mean]
-        #    _std = [acc_std, gyro_std]
-        #else:
-        #    _sp = X_train.shape
-        #    _mean = np.mean(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
-        #    _std  = np.std(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
-        #    X_train = (X_train-_mean)/_std
-        #    X_val   = (X_val-_mean)/_std
-        #    X_test  = (X_test-_mean)/_std
 
         _sp = X_train.shape
         _mean = np.mean(X_train.reshape((_sp[0]*_sp[1],_sp[2])), axis=0, keepdims=True)
@@ -312,6 +293,7 @@ for dataset in datasets:
                         raise NotImplementedError(f'The model {model_name} is not implemented enough yet: {e}')
 
 
+                    history = None
                     if args.skip_train:
                         best_model_path = None
                         history = None
@@ -319,41 +301,46 @@ for dataset in datasets:
                         #--------------------------------------------------------------#
                         # Training
                         #--------------------------------------------------------------#
-                        if framework_name == 'tensorflow':
-                            try:
-                                # Train and evaluate the current model on the dataset. Save the trained models and histories
-                                model, history, best_model_path = evaluate_model(model, X_train, y_train, X_val, y_val,
-                                                                early_stopping_patience=early_stopping_patience, 
-                                                                boot_strap_epochs = args.boot_strap_epochs,
-                                                                _epochs=epochs, _save_name=save_name, _log_dir=log_dir,
-                                                                shuffle_on_train = shuffle_on_train if pass_n == 1 else True,
-                                                                batch_size = batch_size, no_weight = not clw,
-                                                                lr_magnif_on_plateau = args.lr_magnif_on_plateau,
-                                                                reduce_lr_on_plateau_patience=reduce_lr_on_plateau_patience)
+                        try:
+                            # Train and evaluate the current model on the dataset. Save the trained models and histories
+                            model, history, best_model_path = evaluate_model(model, X_train, y_train, X_val, y_val,
+                                                            early_stopping_patience=early_stopping_patience, 
+                                                            boot_strap_epochs = args.boot_strap_epochs,
+                                                            _epochs=epochs, _save_name=save_name, _log_dir=log_dir,
+                                                            shuffle_on_train = shuffle_on_train if pass_n == 1 else True,
+                                                            batch_size = batch_size, no_weight = not clw,
+                                                            lr_magnif_on_plateau = args.lr_magnif_on_plateau,
+                                                            reduce_lr_on_plateau_patience=reduce_lr_on_plateau_patience,
+                                                            show_epoch_time_detail = args.show_epoch_time_detail,
+                                                            framework_name=framework_name)
 
 
-                                print('###############################################################################')
-                            except Exception as e:
-                                print(f"######################## Oh Man! An error occurred. #########################\n{e}")
-                                import traceback
-                                #print(repr(traceback.format_exception(e) # for 3.10 > python version
-                                print(repr(traceback.format_exception(None, e, e.__traceback__)))
+                            print('###############################################################################')
+                        except Exception as e:
+                            print(f"######################## Oh Man! An error occurred. #########################\n{e}")
+                            import traceback
+                            #print(repr(traceback.format_exception(e) # for 3.10 > python version
+                            print(repr(traceback.format_exception(None, e, e.__traceback__)))
+                            raise e
 
-                        elif framework_name == 'pytoroch':
-                            raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
-                        else:
-                            raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                         #--------------------------------------------------------------#
-
 
                     # **************** Time to summarize the model's performance ****************
                     report.write(f"{model_name} Model : {datetime.now()}\n")
                     # Training History
                     if history is not None:
                         report.write(f"Model History \n{pd.DataFrame(history.history)}\n\n")
-                    model_str = []
-                    model.summary(print_fn=lambda x: model_str.append(x))
-                    report.write("\n".join(model_str))
+
+                    model_summary = ''
+                    if framework_name == 'tensorflow':
+                        model_str = []
+                        model.summary(print_fn=lambda x: model_str.append(x))
+                        model_summary = "\n".join(model_str)
+                    elif framework_name == 'pytorch':
+                        from torchinfo import summary
+                        model_summary = str(summary(model, input_shape, verbose=0))
+
+                    report.write(model_summary)
                     report.write('\n\n')
                     report.write("+++Hyperparameters+++\n")
                     report.write(f"Number of Epochs: {epochs}\n")
@@ -375,8 +362,8 @@ for dataset in datasets:
 
                             if framework_name == 'tensorflow':
                                 model.load_weights(best_model_path) 
-                            elif framework_name == 'pytoroch':
-                                raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                            elif framework_name == 'pytorch':
+                                model.load_state_dict(torch.load(best_model_path, weights_only=True))
                             else:
                                 raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
@@ -384,10 +371,16 @@ for dataset in datasets:
                         print(model_type)
                         print('###############################################################################')
 
-                        if args.two_pass:
-                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.h5")) # h5 is fast
-                        else:
-                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.h5")) # h5 is fast
+                        if framework_name == 'tensorflow':
+                            if args.two_pass:
+                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.h5")) # h5 is fast in keras2
+                            else:
+                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.h5")) # h5 is fast in keras2
+                        elif framework_name == 'pytorch':
+                            if args.two_pass:
+                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.pkl"))
+                            else:
+                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.pkl"))
 
                         #--------------------------------------------------------------#
                         # save trained model and get scores
@@ -400,8 +393,14 @@ for dataset in datasets:
                             # TODO check: is it a cause of "CUDA_ERROR_ILLEGAL_ADDRESS"? should we reload the model from the pass?
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             predictions = model.predict(X_test).argmax(1)
-                        elif framework_name == 'pytoroch':
-                            raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                        elif framework_name == 'pytorch':
+                            from torch_utils import calc_loss_acc_output
+                            model.eval()
+                            loss_function = model.get_loss_function()
+                            loss_test, acc_test, predictions = calc_loss_acc_output(model, loss_function, X_test, y_test)
+                            model.train()
+                            scores = [acc_test, loss_test]
+
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                         #--------------------------------------------------------------#
@@ -471,8 +470,8 @@ for dataset in datasets:
 
                     if framework_name == 'tensorflow':
                         tf.keras.backend.clear_session()
-                    elif framework_name == 'pytoroch':
-                        raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
+                    elif framework_name == 'pytorch':
+                        torch.cuda.empty_cache()
                     else:
                         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                     gc.collect()
