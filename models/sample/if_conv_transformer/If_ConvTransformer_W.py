@@ -1,21 +1,73 @@
+###########################################################################
+#
+# This model is ported from the following implement.
+# https://github.com/crocodilegogogo/IF-ConvTransformer-UbiComp2022
+#
+# [NOTE]
+# Due to the difference in benchmark data handling implementation, 
+# some features are not ported well enough.
+# In addtion, this implementation have several limits.
+# 
+# 1: The imu data should be converted from (acc, gyro, quaternion) to
+#    (grav_angle, gyro, acc) rotated by the quaternion.
+#    However, it is not implemented. 
+#    This implementation uses (mag, gyro, acc) instead.
+# 2: The original implementation used z-transformed data. 
+#    However, it is not implemented. 
+#    It is replaced by BatchNormalization for input data.
+# 3: Only a few datasets can work with it.
+#    If you want to enable a new dataset, 
+#    please implement extract_imu_tensor_func for the dataset.
+# 4: There is no definition of non-IMU data handling in the original, 
+#    So, non-IMU data input is ignored.
+#    This ignoring may cause of performance decrease.
+#
+###########################################################################
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-import torch.utils.data as Data
-import torchvision
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-import numpy as np
 import math
-import pandas as pd
-import time
-from utils.utils import *
-import os
 from torch.nn.utils import weight_norm
-from contiguous_params import ContiguousParams
-
+from .utils import * 
 
 def get_config(dataset, lr_magnif=1):
+
+    imu_num = None
+    imu_channel_num = None
+    if dataset.startswith("pamap2"):
+        extract_imu_tensor_func = extract_imu_tensor_func_pamap2
+        imu_num = 3
+        imu_channel_num = 9
+    #elif dataset.startswith('opportunity'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_oppotunity
+    #    imu_num = 5
+    #elif dataset == "daphnet":
+    #    extract_imu_tensor_func = extract_imu_tensor_func_daphnet
+    #elif dataset.startswith("pamap2-separation"):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_pamap2_separation
+    #elif dataset.startswith('opportunity_real-task_c'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_oppotunity_task_c
+    #elif dataset.startswith('opportunity-separation'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_oppotunity_separation
+    elif dataset.startswith('ucihar'):
+        extract_imu_tensor_func = extract_imu_tensor_func_ucihar
+        imu_num = 1
+        imu_channel_num = 9
+    #elif dataset.startswith('wisdm'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_wisdm
+    #elif dataset.startswith('m_health'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_m_health
+    #elif dataset.startswith('real_world-separation'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_real_world_separation
+    #elif dataset.startswith('real_world'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_real_world
+    #elif dataset.startswith('mighar'):
+    #    extract_imu_tensor_func = extract_imu_tensor_func_mighar
+    else:
+        raise NotImplementedError(f"No extract_imu_tensor_func implementation for {dataset}")
+
 
     return {'input_2Dfeature_channel': 1, 
             'feature_channel': 64,
@@ -26,13 +78,16 @@ def get_config(dataset, lr_magnif=1):
             'multiheads': 1,
             'drop_rate': 0.2,
             'learning_rate': 0.001 * lr_magnif,
+            'imu_num': imu_num, 
+            'input_channel': imu_channel_num,
+            'extract_imu_tensor_func': extract_imu_tensor_func,
             'regularization_rate': 0.01}
 
 def gen_model(input_shape, n_classes, out_loss, out_activ, metrics, config):
     """
-        input_shape is [time-series, sensors(=channel)]
+        input_shape is [total num of batches, time-series, sensors(=channel)]
     """
-    return If_ConvTransformer(input_2Dfeature_channel=1, input_channel=input_shape[1], data_length=input_shape[0], nb_classes=n_classes, **config)
+    return If_ConvTransformer_W(orig_input_channel=input_shape[2], data_length=input_shape[1], num_class=n_classes, out_activ=out_activ, **config)
 
 
 def gen_preconfiged_model(input_shape, n_classes, out_loss, out_activ, dataset, metrics=['accuracy'], lr_magnif=1):
@@ -47,15 +102,6 @@ def get_optim_config(dataset, trial, lr_magnif=1):
 def get_dnn_framework_name():
     return 'pytorch'
 
-
-from sklearn.metrics import (
-    accuracy_score,
-    confusion_matrix,
-    f1_score,
-    log_loss,
-    precision_score,
-    recall_score,
-)
 
 class PositionalEncoding(nn.Module):
     "Implement the PE function."
@@ -87,9 +133,9 @@ class SelfAttention(nn.Module):
         self.tokeys    = nn.Linear(k, k * heads, bias = False)
         self.toqueries = nn.Linear(k, k * heads, bias = False)
         self.tovalues  = nn.Linear(k, k * heads, bias = False)
-        # set dropout rate
+        # set dropout
         self.dropout_attention = nn.Dropout(drop_rate)
-        # squeeze to k dimentions through linear transformation
+        # squeeze dimention to k
         self.unifyheads = nn.Linear(heads * k, k)
         
     def forward(self, x):
@@ -117,31 +163,77 @@ class SelfAttention(nn.Module):
         
         return self.unifyheads(out) # (b, t, k)
 
+def conv1d(ni: int, no: int, ks: int = 1, stride: int = 1, padding: int = 0, bias: bool = False):
+    """
+    Create and initialize a `nn.Conv1d` layer with spectral normalization.
+    """
+    conv = nn.Conv1d(ni, no, ks, stride=stride, padding=padding, bias=bias)
+    nn.init.kaiming_normal_(conv.weight)
+    if bias:
+        conv.bias.data.zero_()
+    # return spectral_norm(conv)
+    return conv
+
+class SelfAttention_Branch(nn.Module):
+    
+    def __init__(self, n_channels: int, drop_rate = 0, div = 1):
+        super(SelfAttention_Branch, self).__init__()
+
+        self.n_channels = n_channels
+
+        if n_channels > 1:
+            self.query = conv1d(n_channels, n_channels//div)
+            self.key = conv1d(n_channels, n_channels//div)
+        else:
+            self.query = conv1d(n_channels, n_channels)
+            self.key = conv1d(n_channels, n_channels)
+        self.value = conv1d(n_channels, n_channels)
+        self.dropout_attention = nn.Dropout(drop_rate)
+        self.gamma = nn.Parameter(torch.tensor([0.]))
+
+    def forward(self, x):
+        
+        x = x.permute(0,2,1)
+        size = x.size()
+        x = x.view(*size[:2], -1)
+        f, g, h = (self.query(x) / (self.n_channels ** (1/4))), (self.key(x) / (self.n_channels ** (1/4))), self.value(x)
+        beta = F.softmax(torch.bmm(f.permute(0, 2, 1).contiguous(), g), dim=1)
+        beta = self.dropout_attention(beta)
+        o = self.gamma * torch.bmm(h, beta) + x
+        return o.view(*size).contiguous().permute(0,2,1)
+
 class TransformerBlock(nn.Module):
     def __init__(self, k, heads, drop_rate):
         super(TransformerBlock, self).__init__()
 
         self.attention = SelfAttention(k, heads = heads, drop_rate = drop_rate)
-        self.norm1 = nn.LayerNorm(k)
+        # self.norm1 = nn.LayerNorm(k)
+        self.norm1 = nn.BatchNorm1d(k)
 
         self.mlp = nn.Sequential(
             nn.Linear(k, 4*k),
             nn.ReLU(),
             nn.Linear(4*k, k)
         )
-        self.norm2 = nn.LayerNorm(k)
+        # self.norm2 = nn.LayerNorm(k)
+        self.norm2 = nn.BatchNorm1d(k)
         self.dropout_forward = nn.Dropout(drop_rate)
 
     def forward(self, x):
         
         # perform self-attention
         attended = self.attention(x)
+        attended = attended + x
+        attended = attended.permute(0,2,1)
         # perform layer norm
-        x = self.norm1(attended + x)
+        x = self.norm1(attended).permute(0,2,1)
         # feedforward and layer norm
         feedforward = self.mlp(x)
         
-        return self.dropout_forward(self.norm2(feedforward + x))
+        feedforward = feedforward + x
+        feedforward = feedforward.permute(0,2,1)
+        
+        return self.dropout_forward(self.norm2(feedforward).permute(0,2,1))
 
 class Chomp2d(nn.Module):
     def __init__(self, chomp_size):
@@ -150,7 +242,7 @@ class Chomp2d(nn.Module):
 
     def forward(self, x):
         return x[:, :, :, :-self.chomp_size].contiguous()
-
+    
 class IMU_Fusion_Block(nn.Module):
     def __init__(self, input_2Dfeature_channel, input_channel, 
                  feature_channel, kernel_size_grav,
@@ -162,7 +254,7 @@ class IMU_Fusion_Block(nn.Module):
         self.tcn_grav_convs    = []
         self.tcn_gyro_convs    = []
         self.tcn_acc_convs     = []
-        
+
         for i in range(self.scale_num):
             
             dilation_num_grav = i+1
@@ -236,9 +328,15 @@ class IMU_Fusion_Block(nn.Module):
                 out_attitude = torch.cat([out_attitude, out_grav], dim=4)
                 out_attitude = torch.cat([out_attitude, out_gyro], dim=4)
                 out_dynamic  = torch.cat([out_dynamic, out_acc], dim=2)
-                
+
+        # [MEMO]
+        # print(f'{out_attitude.shape=}')         
+        # out_attitude.shape=torch.Size([64, 64, 3, 128, 4])
+        # The following sensor_num is 2, meaning the grav and gyro.
+
         # (batch_size, time_length, sensor_num*scale_num, 3(xyz), feature_chnnl)
         out_attitude = out_attitude.permute(0,3,4,2,1)
+        
         # (batch_size, time_length, sensor_num*scale_num, 3(xyz)*feature_chnnl)
         out_attitude = out_attitude.reshape(out_attitude.shape[0], out_attitude.shape[1], out_attitude.shape[2], -1)
         # time-step-wise sensor attention, sensor_attn:(batch_size, time_length, sensor_num*scale_num, 1)
@@ -280,50 +378,66 @@ class IMU_Fusion_Block(nn.Module):
         
         return out, sensor_attn
 
-class If_ConvTransformer(nn.Module):
+class If_ConvTransformer_W(nn.Module):
     def __init__(self, input_2Dfeature_channel, input_channel, feature_channel,
                  kernel_size, kernel_size_grav, scale_num, feature_channel_out,
-                 multiheads, drop_rate, data_length, num_class):
+                 multiheads, drop_rate, data_length, num_class,
+                 extract_imu_tensor_func, imu_num, orig_input_channel,
+                 out_activ, learning_rate = 0.001, regularization_rate=0.01):
         
-        super(If_ConvTransformer, self).__init__()
-        
-        self.IMU_fusion_block = IMU_Fusion_Block(input_2Dfeature_channel, input_channel, feature_channel,
-                                                 kernel_size_grav, scale_num)
+        super(If_ConvTransformer_W, self).__init__()
+       
+        self.initial_learning_rate = learning_rate
+        self.extract_imu_tensor_func = extract_imu_tensor_func
+        self.imu_num = imu_num
+
+        self.feature_channel  = feature_channel
+        self.scale_num        = scale_num
+
+        self.IMU_fusion_blocks     = []
+        for i in range(imu_num):
+            IMU_fusion_block   = IMU_Fusion_Block(input_2Dfeature_channel, input_channel, feature_channel,
+                                                  kernel_size_grav, scale_num)
+            setattr(self, 'IMU_fusion_blocks%i' % i, IMU_fusion_block)
+            self.IMU_fusion_blocks.append(IMU_fusion_block)
         
         self.conv2 = nn.Sequential(
             nn.Conv2d(feature_channel, feature_channel, (1,kernel_size), 1, (0,kernel_size//2)),
             nn.BatchNorm2d(feature_channel),
             nn.ReLU(),
-            # nn.MaxPool2d(2)
             )
         
         self.conv3 = nn.Sequential(
             nn.Conv2d(feature_channel, feature_channel, (1,kernel_size), 1, (0,kernel_size//2)),
             nn.BatchNorm2d(feature_channel),
             nn.ReLU(),
-            # nn.MaxPool2d(2)
             )
         
         self.conv4 = nn.Sequential(
             nn.Conv2d(feature_channel, feature_channel, (1,kernel_size), 1, (0,kernel_size//2)),
             nn.BatchNorm2d(feature_channel),
             nn.ReLU(),
-            # nn.MaxPool2d(2)
             )
-       
-        # TODO check: what is it?
-        # to half?
+        
+        # TODO check
+        # It is hardcorded in original.
+        # What is it?
+        # go the channel number to half?
         if input_channel  == 12:
             reduced_channel = 6
         else:
             reduced_channel = 3
         
+        self.norm_conv4  = nn.LayerNorm(feature_channel)
+
+        self.sa         = SelfAttention_Branch(feature_channel, drop_rate = drop_rate)
+
         self.transition = nn.Sequential(
-            nn.Conv1d(feature_channel*(input_channel-reduced_channel)*scale_num, feature_channel_out, 1, 1),
+            nn.Conv1d(feature_channel*(9-reduced_channel)*scale_num*imu_num, feature_channel_out, 1, 1),
             nn.BatchNorm1d(feature_channel_out),
             nn.ReLU()
             )
-        
+
         self.position_encode = PositionalEncoding(feature_channel_out, drop_rate, data_length)
         
         self.transformer_block1 = TransformerBlock(feature_channel_out, multiheads, drop_rate)
@@ -332,28 +446,57 @@ class If_ConvTransformer(nn.Module):
         
         self.global_ave_pooling = nn.AdaptiveAvgPool1d(1)
         
-        self.linear = nn.Linear(feature_channel_out, num_class)
+        self.register_buffer(
+            "centers", (torch.randn(num_class, feature_channel_out).cuda())
+        )
+        
+        self.z_trans = nn.BatchNorm1d(orig_input_channel)
+
+        self.linear_for_out = nn.Linear(feature_channel_out, num_class)
+
+        if out_activ == 'softmax':
+            self.activation_for_out = nn.LogSoftmax(dim=1)
+        else:
+            raise NotImplementedError(f'Activation function {out_activ} is not implemented yet')
 
     def forward(self, x):
         
-        # hidden = None
-        batch_size = x.shape[0]
-        feature_channel = x.shape[1]
-        input_channel = x.shape[2]
-        data_length = x.shape[-1]
-
+        
+        # change axes order
         # The input is [B, time-series, sensors]
         # This model needs [B, C(=1), sensors, time-series]
-    
-        x = torch.unsqueeze(x, 1) # add channel
-        x = torch.transpose(x, 3, 2) # swap 
+        x = torch.transpose(x, 2, 1) # swap to [B, Sensors, time-series]
+        # z-transform for each axis
+        x = self.z_trans(x)
+        x = torch.unsqueeze(x, 1) # add channel, to [B, C, Sensors, time-series]
+        # TODO should be convert: acc,gyro,mag to grav_angle, gyro, acc
+        # TODO: has to do rotation with quotanion
 
-        x, out_attn = self.IMU_fusion_block(x)
+        batch_size      = x.shape[0]
+        data_length     = x.shape[3]
+
+        for i, imu_x in enumerate(self.extract_imu_tensor_func(x)):
+            #x_cur_IMU, cur_sensor_attn   = self.IMU_fusion_blocks[i](x_input[:,:,i*9:(i+1)*9,:])
+            x_cur_IMU, cur_sensor_attn   = self.IMU_fusion_blocks[i](imu_x)
+
+            if i == 0:
+                x        = x_cur_IMU
+                out_attn = cur_sensor_attn
+            else:
+                x        = torch.cat((x, x_cur_IMU), 2)
+                out_attn = torch.cat((out_attn, cur_sensor_attn), 2)
+        
         x = self.conv2(x)
         x = self.conv3(x)
-        x = self.conv4(x)
+        x = self.conv4(x) # [batch_size, fea_dims, sensor_chnnl, data_len]
         
-        x = x.view(batch_size, -1, data_length)
+        x = x.permute(0, 3, 2, 1)
+        x = self.norm_conv4(x).permute(0, 3, 2, 1)
+       
+        x = x.permute(0,3,2,1).reshape(batch_size*data_length, -1, self.feature_channel)
+        x = self.sa(x).reshape(batch_size, data_length, -1, self.feature_channel)
+        x = x.permute(0,3,2,1).reshape(batch_size, -1, data_length)
+       
         x = self.transition(x)
         
         x = self.position_encode(x)
@@ -363,9 +506,34 @@ class If_ConvTransformer(nn.Module):
         x = self.transformer_block2(x)
         x = x.permute(0,2,1)
         
-        x = self.global_ave_pooling(x).squeeze()
+        x = self.global_ave_pooling(x).squeeze(-1)
         
-        output = self.linear(x)
+#        z = x.div(
+#            torch.norm(x, p=2, dim=1, keepdim=True).expand_as(x)
+#        )
+
+        x = self.linear_for_out(x)
+        x = self.activation_for_out(x)
         
-        return output, out_attn
+        return x 
+#        return output, z
     
+
+    def get_optimizer(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr = self.initial_learning_rate)
+        return optimizer
+
+    def get_loss_function(self):
+        ce_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
+        def LabelSmoothingCrossEntropy(x, y):
+            y = torch.argmax(y, dim=1)
+            return ce_loss(x, y)
+        return LabelSmoothingCrossEntropy
+
+    def prepare_before_epoch(self, epoch):
+        epoch_tau = epoch+1
+        tau = max(1 - (epoch_tau - 1) / 50, 0.5)
+        for m in self.modules():
+            if hasattr(m, '_update_tau'):
+                m._update_tau(tau)
+

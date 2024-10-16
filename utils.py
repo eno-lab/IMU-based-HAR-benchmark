@@ -20,11 +20,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import stats
-from tensorflow import keras
-from tensorflow.keras.models import load_model
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
 from datareader.ispl import DataReader
 
 from sklearn.model_selection import train_test_split
@@ -211,32 +206,64 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         print(f'{key=}, {class_weight[key]=}')
     print(class_weight)
 
+
+    if framework_name == 'tensorflow':
+        from tensorflow import keras
+        from tensorflow.keras.models import load_model
+        from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
+        from tensorflow.keras.utils import to_categorical
+        from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
+
     time_callback = None
     if show_epoch_time_detail:
         import time
         import array
-        class TimeHistory(keras.callbacks.Callback):
-            def on_train_begin(self, logs={}):
-                self.train_batch_times = np.zeros((2,100000000), dtype=int)
-                self.train_count = 0
+        if framework_name == 'tensorflow':
+            class TimeHistory(keras.callbacks.Callback):
+                def on_train_begin(self, logs={}):
+                    self.train_batch_times = np.zeros((2,100000000), dtype=int)
+                    self.train_count = 0
 
-            def on_test_begin(self, logs={}):
-                self.valid_batch_times = np.zeros((2,100000000), dtype=int)
-                self.valid_count = 0
+                def on_test_begin(self, logs={}):
+                    self.valid_batch_times = np.zeros((2,100000000), dtype=int)
+                    self.valid_count = 0
 
-            def on_train_batch_begin(self, batch, logs=None):
-                self.train_batch_times[0, self.train_count] = time.perf_counter_ns()
+                def on_train_batch_begin(self, batch, logs=None):
+                    self.train_batch_times[0, self.train_count] = time.perf_counter_ns()
 
-            def on_train_batch_end(self, batch, logs=None):
-                self.train_batch_times[1, self.train_count] = time.perf_counter_ns()
-                self.train_count += 1
+                def on_train_batch_end(self, batch, logs=None):
+                    self.train_batch_times[1, self.train_count] = time.perf_counter_ns()
+                    self.train_count += 1
 
-            def on_test_batch_begin(self, batch, logs=None):
-                self.valid_batch_times[0, self.valid_count] = time.perf_counter_ns()
+                def on_test_batch_begin(self, batch, logs=None):
+                    self.valid_batch_times[0, self.valid_count] = time.perf_counter_ns()
 
-            def on_test_batch_end(self, batch, logs=None):
-                self.valid_batch_times[1, self.valid_count] = time.perf_counter_ns()
-                self.valid_count += 1
+                def on_test_batch_end(self, batch, logs=None):
+                    self.valid_batch_times[1, self.valid_count] = time.perf_counter_ns()
+                    self.valid_count += 1
+        if framework_name == 'pytorch':
+            class TimeHistory():
+                def on_train_begin(self, logs={}):
+                    self.train_batch_times = np.zeros((2,100000000), dtype=int)
+                    self.train_count = 0
+
+                def on_test_begin(self, logs={}):
+                    self.valid_batch_times = np.zeros((2,100000000), dtype=int)
+                    self.valid_count = 0
+
+                def on_train_batch_begin(self, batch, logs=None):
+                    self.train_batch_times[0, self.train_count] = time.perf_counter_ns()
+
+                def on_train_batch_end(self, batch, logs=None):
+                    self.train_batch_times[1, self.train_count] = time.perf_counter_ns()
+                    self.train_count += 1
+
+                def on_test_batch_begin(self, batch, logs=None):
+                    self.valid_batch_times[0, self.valid_count] = time.perf_counter_ns()
+
+                def on_test_batch_end(self, batch, logs=None):
+                    self.valid_batch_times[1, self.valid_count] = time.perf_counter_ns()
+                    self.valid_count += 1
 
         time_callback = TimeHistory()
 
@@ -280,11 +307,15 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                              callbacks=callbacks)
 
     elif framework_name == 'pytorch':
-        raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
         import torch.utils.data as Data
         from torch_utils import calc_loss_acc_output
+        import torch
+        import time
 
-        torch_dataset = Data.TensorDataset(torch.FloatTensor(_X_train), torch.tensor(_y_train).long())
+        _model.cuda()
+
+        torch_dataset = Data.TensorDataset(torch.FloatTensor(_X_train), torch.FloatTensor(_y_train))
+
         train_loader = Data.DataLoader(dataset = torch_dataset,
                                        batch_size = batch_size,
                                        shuffle = shuffle_on_train,
@@ -292,17 +323,18 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                                        )
 
 
-        parameters = ContiguousParams(_model.parameters())
+
+        optimizer = _model.get_optimizer()
+        loss_function = _model.get_loss_function()
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
                                                                'min', 
                                                                factor=lr_magnif_on_plateau, 
                                                                patience=reduce_lr_on_plateau_patience,
                                                                min_lr=0.00000001, 
                                                                verbose=True)
-        optimizer = _model.get_optimizer()
-        loss_function = _model.get_loss_function()
         
-        start_time = time.time()
+        train_start_time = time.time()
+        start_time = train_start_time
         log_training_duration = []
         best_val_loss = 1000000000
 
@@ -311,9 +343,20 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         if time_callback is not None:
             time_callback.on_train_begin()
 
-        for epoch in range (epochs):
+
+        # init lr&train&test loss&acc log
+        lr_results = [] 
+        loss_train_results = []
+        accuracy_train_results = []
+        loss_validation_results = []
+        accuracy_validation_results = []
+
+        for epoch in range (_epochs):
             true_sum_data *= 0
             loss_sum_data *= 0
+
+            _tmp_total=0
+            _model.train()
             _model.prepare_before_epoch(epoch)
             for step, (x,y) in enumerate(train_loader):
                 batch_x = x.cuda()
@@ -321,25 +364,28 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
 
                 if time_callback is not None:
                     time_callback.on_train_batch_begin(step)
-                output_bc = _model(batch_x)[0]
+
+                output_bc = _model(batch_x)
                 if time_callback is not None:
                     time_callback.on_train_batch_end(step)
                 
                 # cal the sum of pre loss per batch 
                 loss = loss_function(output_bc, batch_y)
-                loss_sum_data = loss_sum_data + loss_bc
-
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-                pred_bc = torch.max(output_bc, 1)[1].data.cuda().squeeze()
-                true_num_bc = torch.sum(pred_bc == y).data
+                loss_sum_data = loss_sum_data + loss
+                #pred_bc = torch.max(output_bc, 1)[1].data.cuda().squeeze()
+                pred_bc = torch.argmax(output_bc, dim=1)
+                _tmp_total += pred_bc.shape[0]
+                #print(torch.sum(pred_bc == torch.argmax(batch_y, dim=1)))
+                true_num_bc = torch.sum(pred_bc == torch.argmax(batch_y, dim=1)).data
                 true_sum_data = true_sum_data + true_num_bc
 
 
-            loss_train = loss_sum_data.data.item()/y_data.shape[0]
-            acc_train = true_sum_data.data.item()/y_data.shape[0]
+            loss_train = loss_sum_data.data.item()/_y_train.shape[0]
+            acc_train = true_sum_data.data.item()/_y_train.shape[0]
 
             # validation
             _model.eval()
@@ -359,35 +405,42 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
             loss_validation_results.append(loss_valid)    
             accuracy_validation_results.append(acc_valid)
 
-            # print training process
-            print('Epoch:', (epoch+1), '|lr:', lr,
-                  '| train_loss:', loss_train, 
-                  '| train_acc:', accuracy_train, 
-                  '| validation_loss:', loss_validation, 
-                  '| validation_acc:', accuracy_validation)
-
             # log training time 
-            per_training_duration = time.time() - start_time
+            _end_time = time.time()
+            per_training_duration = _end_time - start_time
+            start_time = _end_time
             log_training_duration.append(per_training_duration)
+
+            # print training process
+            print(f'Epoch: {epoch+1:4d}' +
+                  f'| time: {per_training_duration:.6f}' +
+                  f'| lr: {lr:.6f}' +
+                  f'| train_loss: {loss_train:.6f}' + 
+                  f'| train_acc: {acc_train:.6f}' +
+                  f'| val_loss: {loss_valid:.6f}' +
+                  f'| val_acc: {acc_valid:.6f}')
+
 
             # save best model
             if best_val_loss > loss_valid:
                 best_val_loss = loss_valid
                 torch.save(_model.state_dict(), checkpoint_path)
 
-            history = pd.DataFrame(data = np.zeros((EPOCH,5),dtype=np.float), 
-                                   columns=['train_acc','train_loss','val_acc','val_loss','lr'])
-            history['accuracy'] = accuracy_train_results
-            history['loss'] = loss_train_results
-            history['val_accuracy'] = accuracy_validation_results
-            history['val_loss'] = loss_validation_results
-            history['lr'] = lr_results
+        history = pd.DataFrame(data = np.zeros((len(accuracy_train_results),5),dtype=float), 
+                               columns=['train_acc','train_loss','val_acc','val_loss','lr'])
+        history['accuracy'] = accuracy_train_results
+        history['loss'] = loss_train_results
+        history['val_accuracy'] = accuracy_validation_results
+        history['val_loss'] = loss_validation_results
+        history['lr'] = lr_results
 
-            class HistoryWrapper:
-                history = history
-                epoch = list(range(1, epochs+1)
+        class HistoryWrapper:
 
-            history = HistoryWrapper()
+            def __init__(self):
+                self.history = history
+                self.epoch = list(range(1, _epochs+1))
+
+        history = HistoryWrapper()
 
     else:
         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")

@@ -120,8 +120,11 @@ if framework_name == 'tensorflow':
         from utils import plot_metrics
 
 elif framework_name == 'pytorch':
+    if 'evaluate_model' not in globals():
+        from utils import evaluate_model
+    if 'plot_metrics' not in globals():
+        from utils import plot_metrics
     import torch
-    raise NotImplementedError("Please someone implements it and send a pull request!! {framework_name=}")
 else:
     raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 # ...................................................................................#
@@ -290,6 +293,7 @@ for dataset in datasets:
                         raise NotImplementedError(f'The model {model_name} is not implemented enough yet: {e}')
 
 
+                    history = None
                     if args.skip_train:
                         best_model_path = None
                         history = None
@@ -317,6 +321,7 @@ for dataset in datasets:
                             import traceback
                             #print(repr(traceback.format_exception(e) # for 3.10 > python version
                             print(repr(traceback.format_exception(None, e, e.__traceback__)))
+                            raise e
 
                         #--------------------------------------------------------------#
 
@@ -333,7 +338,7 @@ for dataset in datasets:
                         model_summary = "\n".join(model_str)
                     elif framework_name == 'pytorch':
                         from torchinfo import summary
-                        model_summary = str(summary(model, (batch_size, ) + input_shape, verbose=0))
+                        model_summary = str(summary(model, input_shape, verbose=0))
 
                     report.write(model_summary)
                     report.write('\n\n')
