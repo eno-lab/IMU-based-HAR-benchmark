@@ -3,13 +3,11 @@ import gc
 import sys
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 import importlib
 from datetime import datetime
 from time import time
 
-from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix, classification_report
 
 from datareader import gen_datareader
 
@@ -452,14 +450,6 @@ for dataset in datasets:
                         print(normalised_confusion_matrix)
                         normalised_confusion_matrix_df = pd.DataFrame(normalised_confusion_matrix, index=labels, columns=labels)
                         report.write(f"Normalised Confusion Matrix: True\n{normalised_confusion_matrix_df}\n\n\n")
-
-                        ConfusionMatrixDisplay(cm, display_labels=labels).plot(cmap=plt.cm.Blues,)
-                        plt.grid(False)
-                        #sns.heatmap(normalised_confusion_matrix_df, cmap='rainbow')
-                        #plt.title("Confusion matrix\n(normalised to % of total test data)")
-                        #plt.ylabel('True label')
-                        #plt.xlabel('Predicted label')
-                        plt.savefig(os.path.join(img_path, f"{file_prefix}_{model_type}_confusion_matrix.png"), bbox_inches='tight')
 
                         clr = classification_report(y_test.argmax(1), predictions,
                                                     labels=np.unique(y_test.argmax(1)), output_dict=True, zero_division=0.0)
