@@ -35,7 +35,8 @@ from .utils import *
 def get_config(dataset, lr_magnif=1):
 
     imu_num = None
-    imu_channel_num = None
+    imu_channel_num = 9
+
     if dataset.startswith("pamap2"):
         extract_imu_tensor_func = extract_imu_tensor_func_pamap2
         imu_num = 3
@@ -63,8 +64,16 @@ def get_config(dataset, lr_magnif=1):
     #    extract_imu_tensor_func = extract_imu_tensor_func_real_world_separation
     #elif dataset.startswith('real_world'):
     #    extract_imu_tensor_func = extract_imu_tensor_func_real_world
-    #elif dataset.startswith('mighar'):
-    #    extract_imu_tensor_func = extract_imu_tensor_func_mighar
+    elif dataset.startswith('mighar'):
+        extract_imu_tensor_func = extract_imu_tensor_func_mighar
+        imu_channel_num = 9
+        if dataset.startswith('mighar-separation'):
+            imu_num = 1
+        elif dataset.startswith('mighar-combination'):
+            sensors = dataset.split('-')[1][len('separation_'):].split('_')
+            imu_num = len(sensors)
+        else:
+            imu_num = 396
     else:
         raise NotImplementedError(f"No extract_imu_tensor_func implementation for {dataset}")
 
@@ -475,9 +484,9 @@ class If_ConvTransformer_W(nn.Module):
         batch_size      = x.shape[0]
         data_length     = x.shape[3]
 
-        for i, imu_x in enumerate(self.extract_imu_tensor_func(x)):
-            #x_cur_IMU, cur_sensor_attn   = self.IMU_fusion_blocks[i](x_input[:,:,i*9:(i+1)*9,:])
-            x_cur_IMU, cur_sensor_attn   = self.IMU_fusion_blocks[i](imu_x)
+        imu_x_list = self.extract_imu_tensor_func(x)
+        for i in range(self.imu_num):
+            x_cur_IMU, cur_sensor_attn   = self.IMU_fusion_blocks[i](imu_x_list[i])
 
             if i == 0:
                 x        = x_cur_IMU

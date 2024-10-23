@@ -260,7 +260,12 @@ for dataset in datasets:
                     log_dir = os.path.abspath(os.path.join('logs', 'fit', dataset, file_prefix))
                     os.makedirs(log_dir, exist_ok=True)
 
-                save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.h5")) # faster
+                if framework_name == 'tensorflow':
+                    save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.h5")) # faster than .keras on keras2
+                elif framework_name == 'pytorch':
+                    save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.pkl"))
+                else:
+                    raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
                 input_shape = X_train.shape
 
@@ -284,8 +289,14 @@ for dataset in datasets:
                                 model = mod.gen_model(input_shape, n_classes, 
                                                       recommended_out_loss, recommended_out_activ, 
                                                       METRICS, hyperparameters)
+
                         elif pass_n == 2:
-                            model = tf.keras.saving.load_model(best_model_weight_path)
+                            if framework_name == 'tensorflow':
+                                model = tf.keras.saving.load_model(best_model_weight_path)
+                            elif framework_name == 'pytorch':
+                                raise NotImplementedError(f'Two pass with {framework_name} is not implemented enough yet')
+                            else:
+                                raise NotImplementedError(f'Two pass with {framework_name} is not implemented enough yet')
 
                         for key, item in hyperparameters.items():
                             print(f"{key.replace('_', ' ').capitalize()}: {item}")
@@ -338,7 +349,10 @@ for dataset in datasets:
                         model_summary = "\n".join(model_str)
                     elif framework_name == 'pytorch':
                         from torchinfo import summary
-                        model_summary = str(summary(model, input_shape, verbose=0))
+                        # torchinfo.summary with device=None or device=torch.device('cuda') consumes 
+                        # twice cuda memory with the model.
+                        model_summary = str(summary(model, input_shape, verbose=0, device=torch.device('cpu')))
+                        model.cuda()
 
                     report.write(model_summary)
                     report.write('\n\n')
@@ -381,6 +395,8 @@ for dataset in datasets:
                                 _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.pkl"))
                             else:
                                 _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.pkl"))
+                        else:
+                            raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
                         #--------------------------------------------------------------#
                         # save trained model and get scores

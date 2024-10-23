@@ -319,7 +319,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         train_loader = Data.DataLoader(dataset = torch_dataset,
                                        batch_size = batch_size,
                                        shuffle = shuffle_on_train,
-                                       drop_last = _X_train.shape[0] % batch_size == 1
+                                       drop_last = _X_train.shape[0] % batch_size != 0
                                        )
 
 
@@ -330,8 +330,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                                                                'min', 
                                                                factor=lr_magnif_on_plateau, 
                                                                patience=reduce_lr_on_plateau_patience,
-                                                               min_lr=0.00000001, 
-                                                               verbose=True)
+                                                               min_lr=0.00000001)
         
         train_start_time = time.time()
         start_time = train_start_time
