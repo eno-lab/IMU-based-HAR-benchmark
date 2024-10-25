@@ -2,6 +2,12 @@
 
 This is a benchmark utility for IMU-based HAR models. 
 
+# NEWS
+- Adding Keras 3 support
+  - Keras 2 support has also been kept. (Some sample models only work with Keras 2. See models/sample/keras2.)
+- Adding pyTorch support 
+
+
 # LICENSE
 Use of this benchmark in publications must be acknowledged by referencing the following publication [1]. 
 We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publications.
@@ -54,7 +60,7 @@ environment variable
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'ispl.ispl_inception' --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'sample.mch_cnn_gru' --patience 50 --epochs 600 --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 'sample.deep_conv_lstm' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
-CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 'sample.mobile_hart_xs' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
+CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['m_health']" --model_name 'sample.keras2.mobile_hart_xs' --boot_strap_epochs 150 --epochs 350 --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['opportunity']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --shuffle_on_train
 CUDA_VISIBLE_DEVICES=0 python3 -m main --datasets "['ucihar']" --model_name 'tsf' --boot_strap_epochs 150 --patience 50 --epochs 350 --optuna --optuna_study_suffix 20231101 --optuna_num_of_trial 600
 
@@ -68,8 +74,6 @@ The last two examples with model_name 'tsf' require the rTsfNet model. Please se
 Tensorflow 2.15 has [a bug](https://github.com/tensorflow/tensorflow/issues/62607) on LayerNormalization.
 If you evaluate tensorflow models including LayerNormalization,  
 please use the other versions, such as 2.14, or set 1e-7 for the epsilon attribute of LayerNormalization.
-
-Currently, as of 2024/07/09, Keras 3 is not supported. Please use Keras 2. We are working to enable Keras 3.
 
 # Available Dataset
 DATASETS is handled via 'eval'.
