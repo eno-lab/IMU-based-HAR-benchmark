@@ -3,13 +3,12 @@ import gc
 import sys
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 import importlib
 from datetime import datetime
 from time import time
+from utils import evaluate_model
 
-from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix, classification_report
 
 from datareader import gen_datareader
 
@@ -106,32 +105,23 @@ if framework_name == 'tensorflow':
         tf.config.experimental.set_memory_growth(gpu, True)
     # ...................................................................................#
     # for debug
-    # tf.debugging.experimental.enable_dump_debug_info( #     "/tmp/tfdbg2_logdir",
-    #     tensor_debug_mode="FULL_HEALTH",
-    #     circular_buffer_size=-1)
+    # debug_log_dir = "tfdbg2_logdir"
+    # os.makedirs(debug_log_dir, exist_ok=True)
+    # tf.debugging.experimental.enable_dump_debug_info(
+    #         debug_log_dir,
+    #         tensor_debug_mode="FULL_HEALTH",
+    #         circular_buffer_size=-1)
     # ...................................................................................#
 
     if args.mixed_precision is not None:
         tf.keras.mixed_precision.set_global_policy(args.mixed_precision)
 
-    if 'evaluate_model' not in globals():
-        from utils import evaluate_model
-    if 'plot_metrics' not in globals():
-        from utils import plot_metrics
+    from tf_utils import IS_KERAS_VERSION_GE_3
 
 elif framework_name == 'pytorch':
-    if 'evaluate_model' not in globals():
-        from utils import evaluate_model
-    if 'plot_metrics' not in globals():
-        from utils import plot_metrics
     import torch
 else:
     raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
-# ...................................................................................#
-
-# ...................................................................................#
-if args.ispl_datareader:
-    from utils import load_dataset, get_loss_and_activation
 # ...................................................................................#
 
 for dataset in datasets:
@@ -149,6 +139,7 @@ for dataset in datasets:
                                     load_if_exists=True)
 
     if args.ispl_datareader:
+        from ispl_utils import load_dataset, get_loss_and_activation
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = load_dataset(dataset)
         recommended_out_loss, recommended_out_activ = get_loss_and_activation(dataset)
         file_prefix = f"{file_prefix}_ispl-datareader"
@@ -261,7 +252,8 @@ for dataset in datasets:
                     os.makedirs(log_dir, exist_ok=True)
 
                 if framework_name == 'tensorflow':
-                    save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.h5")) # faster than .keras on keras2
+                    # .keras model is faster than .h5 on keras3. (on Keras2, .h5 is better)
+                    save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.{'keras' if IS_KERAS_VERSION_GE_3 else 'h5'}")) 
                 elif framework_name == 'pytorch':
                     save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.pkl"))
                 else:
@@ -284,7 +276,10 @@ for dataset in datasets:
 
                         if pass_n == 1:
                             if args.pretrained_model is not None:
-                                model = tf.keras.saving.load_model(args.pretrained_model)
+                                if IS_KERAS_VERSION_GE_3:
+                                    model = tf.keras.models.load_model(args.pretrained_model)
+                                else:
+                                    model = tf.keras.saving.load_model(args.pretrained_model)
                             else:
                                 model = mod.gen_model(input_shape, n_classes, 
                                                       recommended_out_loss, recommended_out_activ, 
@@ -292,7 +287,10 @@ for dataset in datasets:
 
                         elif pass_n == 2:
                             if framework_name == 'tensorflow':
-                                model = tf.keras.saving.load_model(best_model_weight_path)
+                                if IS_KERAS_VERSION_GE_3:
+                                    model = tf.keras.models.load_model(best_model_weight_path)
+                                else:
+                                    model = tf.keras.saving.load_model(best_model_weight_path)
                             elif framework_name == 'pytorch':
                                 raise NotImplementedError(f'Two pass with {framework_name} is not implemented enough yet')
                             else:
@@ -328,10 +326,6 @@ for dataset in datasets:
 
                             print('###############################################################################')
                         except Exception as e:
-                            print(f"######################## Oh Man! An error occurred. #########################\n{e}")
-                            import traceback
-                            #print(repr(traceback.format_exception(e) # for 3.10 > python version
-                            print(repr(traceback.format_exception(None, e, e.__traceback__)))
                             raise e
 
                         #--------------------------------------------------------------#
@@ -360,10 +354,6 @@ for dataset in datasets:
                     report.write(f"Number of Epochs: {epochs}\n")
                     report.write(f"Batch Size: {batch_size}\n")
 
-                    # let's plot our training history
-                    if history is not None:
-                        plot_metrics(history, model_name, dataset, os.path.join(img_path, f"{file_prefix}_history.png"))
-
                     for key, item in hyperparameters.items():
                         report.write(f"{key.replace('_', ' ').capitalize()}: {item}\n")
 
@@ -385,16 +375,12 @@ for dataset in datasets:
                         print(model_type)
                         print('###############################################################################')
 
+                        pass_midfix = f'_pass-{pass_n}' if args.two_pass else ''
                         if framework_name == 'tensorflow':
-                            if args.two_pass:
-                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.h5")) # h5 is fast in keras2
-                            else:
-                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.h5")) # h5 is fast in keras2
+                            # .keras model is faster than .h5 on keras3. (on Keras2, .h5 is better)
+                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}{pass_midfix}_{model_type}.{'keras' if IS_KERAS_VERSION_GE_3 else 'h5'}")) # h5 is fast in keras2
                         elif framework_name == 'pytorch':
-                            if args.two_pass:
-                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_pass-{pass_n}_{model_type}.pkl"))
-                            else:
-                                _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.pkl"))
+                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}{pass_midfix}_{model_type}.pkl"))
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
@@ -453,14 +439,6 @@ for dataset in datasets:
                         normalised_confusion_matrix_df = pd.DataFrame(normalised_confusion_matrix, index=labels, columns=labels)
                         report.write(f"Normalised Confusion Matrix: True\n{normalised_confusion_matrix_df}\n\n\n")
 
-                        ConfusionMatrixDisplay(cm, display_labels=labels).plot(cmap=plt.cm.Blues,)
-                        plt.grid(False)
-                        #sns.heatmap(normalised_confusion_matrix_df, cmap='rainbow')
-                        #plt.title("Confusion matrix\n(normalised to % of total test data)")
-                        #plt.ylabel('True label')
-                        #plt.xlabel('Predicted label')
-                        plt.savefig(os.path.join(img_path, f"{file_prefix}_{model_type}_confusion_matrix.png"), bbox_inches='tight')
-
                         clr = classification_report(y_test.argmax(1), predictions,
                                                     labels=np.unique(y_test.argmax(1)), output_dict=True, zero_division=0.0)
 
@@ -504,7 +482,11 @@ for dataset in datasets:
     except Exception as ex:
         print("Caught an exception: ", ex)
         import traceback
-        print(repr(traceback.format_exception(ex)))
+        pyver = sys.version_info
+        if pyver.major >=3 and pyver.minor >= 10: 
+            print("".join(traceback.format_exception(ex))) # for 3.10
+        else:
+            print("".join(traceback.format_exception(None, ex, ex.__traceback__)))
         continue
 
     print('**Finished**')

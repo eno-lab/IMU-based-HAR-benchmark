@@ -4,7 +4,7 @@ from tensorflow.keras.regularizers import l2
 
 import numpy as np
 
-randomSeed = 1
+#randomSeed = 1
 # tf.random.set_seed(randomSeed)
 
 class DropPath(layers.Layer):
