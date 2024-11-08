@@ -3,6 +3,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from keras_utils import IS_KERAS_VERSION_GE_3
 
 def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, 
                    _epochs=20, early_stopping_patience=10, boot_strap_epochs=0,
@@ -34,18 +35,19 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
     print(class_weight)
 
 
-    if framework_name == 'tensorflow':
-        from tensorflow import keras
-        from tensorflow.keras.models import load_model
-        from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
-        from tensorflow.keras.utils import to_categorical
-        from tensorflow.keras.losses import CategoricalCrossentropy, Reduction
+    if framework_name in ('tensorflow', 'keras'):
+        if not IS_KERAS_VERSION_GE_3:
+            from tensorflow import keras
+            from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
+        else:
+            import keras
+            from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 
     time_callback = None
     if show_epoch_time_detail:
         import time
         import array
-        if framework_name == 'tensorflow':
+        if framework_name in ('tensorflow', 'keras'):
             class TimeHistory(keras.callbacks.Callback):
                 def on_train_begin(self, logs={}):
                     self.train_batch_times = np.zeros((2,100000000), dtype=int)
@@ -68,7 +70,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                 def on_test_batch_end(self, batch, logs=None):
                     self.valid_batch_times[1, self.valid_count] = time.perf_counter_ns()
                     self.valid_count += 1
-        if framework_name == 'pytorch':
+        if framework_name in ('pytorch', 'torch'):
             class TimeHistory():
                 def on_train_begin(self, logs={}):
                     self.train_batch_times = np.zeros((2,100000000), dtype=int)
@@ -97,7 +99,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
     checkpoint_path = _save_name
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
-    if framework_name == 'tensorflow':
+    if framework_name in ('tensorflow', 'keras'):
         callbacks = []
         if time_callback is not None:
             callbacks.append(time_callback)
@@ -130,15 +132,14 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                        'callbacks': callbacks
                       }
         
-        from tf_utils import IS_KERAS_VERSION_GE_3
         if not IS_KERAS_VERSION_GE_3:
-         _fit_config['use_multiprocessing'] = True
+            _fit_config['use_multiprocessing'] = True
         # Training the model
         history = _model.fit(_X_train,
                              _y_train,
                              **_fit_config)
 
-    elif framework_name == 'pytorch':
+    elif framework_name in ('pytorch', 'keras'):
         import torch.utils.data as Data
         from torch_utils import calc_loss_acc_output
         import torch
@@ -274,7 +275,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         history = HistoryWrapper()
 
     else:
-        raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
+        raise NotImplementedError(f"Invalid DNN framework is specified. {framework_name=}")
 
     if time_callback is not None:
         train_batch_time = np.median(np.diff(time_callback.train_batch_times[:,:time_callback.train_count], axis=0))

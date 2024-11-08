@@ -92,33 +92,44 @@ print(f"{datasets=}")
 print(f"{model_name=}")
 print("===============")
 
+
+IS_TF = False
 # ...................................................................................#
 # init framework
 # ...................................................................................#
 mod = importlib.import_module(f'models.{model_name}')
 framework_name  = mod.get_dnn_framework_name()
-if framework_name == 'tensorflow':
-    import tensorflow as tf
+if framework_name in ('keras', 'tensorflow'):
+    from keras_utils import IS_KERAS_VERSION_GE_3
+    if IS_KERAS_VERSION_GE_3:
+        import keras
+        if keras.config.backend() == 'tensorflow':
+            IS_TF = True
+    else:
+        from tensorflow import keras
 
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    # ...................................................................................#
-    # for debug
-    # debug_log_dir = "tfdbg2_logdir"
-    # os.makedirs(debug_log_dir, exist_ok=True)
-    # tf.debugging.experimental.enable_dump_debug_info(
-    #         debug_log_dir,
-    #         tensor_debug_mode="FULL_HEALTH",
-    #         circular_buffer_size=-1)
-    # ...................................................................................#
+    if framework_name == 'tensorflow':
+        IS_TF = True
+
+    if  IS_TF:
+        import tensorflow as tf
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        # ...................................................................................#
+        # for debug
+        # debug_log_dir = "tfdbg2_logdir"
+        # os.makedirs(debug_log_dir, exist_ok=True)
+        # tf.debugging.experimental.enable_dump_debug_info(
+        #         debug_log_dir,
+        #         tensor_debug_mode="FULL_HEALTH",
+        #         circular_buffer_size=-1)
+        # ...................................................................................#
 
     if args.mixed_precision is not None:
-        tf.keras.mixed_precision.set_global_policy(args.mixed_precision)
+        keras.mixed_precision.set_global_policy(args.mixed_precision)
 
-    from tf_utils import IS_KERAS_VERSION_GE_3
-
-elif framework_name == 'pytorch':
+elif framework_name in ('pytorch', 'torch'):
     import torch
 else:
     raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
@@ -148,9 +159,11 @@ for dataset in datasets:
         X_train, y_train, X_val, y_val, X_test, y_test, labels, n_classes = dr.gen_ispl_style_set()
         recommended_out_loss, recommended_out_activ = dr.recommended_out_loss, dr.recommended_out_activ
 
-    if framework_name == 'tensorflow':
-        if args.label_smoothing > 0:
-            recommended_out_loss = tf.keras.losses.CategoricalCrossentropy(label_smoothing=args.label_smoothing),
+    if args.label_smoothing > 0:
+        if IS_TF:
+            recommended_out_loss = keras.losses.CategoricalCrossentropy(label_smoothing=args.label_smoothing),
+        else:
+            raise NotImplementedError(f'label_smoothing is supported on tf only')
 
 
     if downsampling_ignore_rate > 0:
@@ -251,10 +264,10 @@ for dataset in datasets:
                     log_dir = os.path.abspath(os.path.join('logs', 'fit', dataset, file_prefix))
                     os.makedirs(log_dir, exist_ok=True)
 
-                if framework_name == 'tensorflow':
+                if framework_name in ('tensorflow', 'keras'):
                     # .keras model is faster than .h5 on keras3. (on Keras2, .h5 is better)
                     save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.{'keras' if IS_KERAS_VERSION_GE_3 else 'h5'}")) 
-                elif framework_name == 'pytorch':
+                elif framework_name in ('pytorch', 'torch'):
                     save_name = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}.pkl"))
                 else:
                     raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
@@ -276,23 +289,31 @@ for dataset in datasets:
 
                         if pass_n == 1:
                             if args.pretrained_model is not None:
-                                if IS_KERAS_VERSION_GE_3:
-                                    model = tf.keras.models.load_model(args.pretrained_model)
+                                if framework_name in ('tensorflow', 'keras'):
+                                    if IS_KERAS_VERSION_GE_3:
+                                        model = keras.models.load_model(args.pretrained_model)
+                                    else:
+                                        model = keras.saving.load_model(args.pretrained_model)
+                                elif framework_name in ('pytorch', 'torch'):
+                                    model = mod.gen_model(input_shape, n_classes, 
+                                                          recommended_out_loss, recommended_out_activ, 
+                                                          METRICS, hyperparameters)
+                                    model.load_state_dict(torch.load(args.pretrained_model, weights_only=True))
                                 else:
-                                    model = tf.keras.saving.load_model(args.pretrained_model)
+                                    raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                             else:
                                 model = mod.gen_model(input_shape, n_classes, 
                                                       recommended_out_loss, recommended_out_activ, 
                                                       METRICS, hyperparameters)
 
                         elif pass_n == 2:
-                            if framework_name == 'tensorflow':
+                            if framework_name in ('tensorflow', 'keras'):
                                 if IS_KERAS_VERSION_GE_3:
-                                    model = tf.keras.models.load_model(best_model_weight_path)
+                                    model = keras.models.load_model(best_model_weight_path)
                                 else:
-                                    model = tf.keras.saving.load_model(best_model_weight_path)
-                            elif framework_name == 'pytorch':
-                                raise NotImplementedError(f'Two pass with {framework_name} is not implemented enough yet')
+                                    model = keras.saving.load_model(best_model_weight_path)
+                            elif framework_name in ('pytorch', 'torch'):
+                                model.load_state_dict(torch.load(best_model_weight_path, weights_only=True))
                             else:
                                 raise NotImplementedError(f'Two pass with {framework_name} is not implemented enough yet')
 
@@ -337,11 +358,11 @@ for dataset in datasets:
                         report.write(f"Model History \n{pd.DataFrame(history.history)}\n\n")
 
                     model_summary = ''
-                    if framework_name == 'tensorflow':
+                    if framework_name in ('tensorflow', 'keras'):
                         model_str = []
                         model.summary(print_fn=lambda x: model_str.append(x))
                         model_summary = "\n".join(model_str)
-                    elif framework_name == 'pytorch':
+                    elif framework_name in ('pytorch', 'torch'):
                         from torchinfo import summary
                         # torchinfo.summary with device=None or device=torch.device('cuda') consumes 
                         # twice cuda memory with the model.
@@ -364,9 +385,9 @@ for dataset in datasets:
                             if best_model_path is None:
                                 continue
 
-                            if framework_name == 'tensorflow':
+                            if framework_name in ('tensorflow', 'keras'):
                                 model.load_weights(best_model_path) 
-                            elif framework_name == 'pytorch':
+                            elif framework_name in ('pytorch', 'torch'):
                                 model.load_state_dict(torch.load(best_model_path, weights_only=True))
                             else:
                                 raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
@@ -376,10 +397,10 @@ for dataset in datasets:
                         print('###############################################################################')
 
                         pass_midfix = f'_pass-{pass_n}' if args.two_pass else ''
-                        if framework_name == 'tensorflow':
+                        if framework_name in ('tensorflow', 'keras'):
                             # .keras model is faster than .h5 on keras3. (on Keras2, .h5 is better)
                             _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}{pass_midfix}_{model_type}.{'keras' if IS_KERAS_VERSION_GE_3 else 'h5'}")) # h5 is fast in keras2
-                        elif framework_name == 'pytorch':
+                        elif framework_name in ('pytorch', 'torch'):
                             _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}{pass_midfix}_{model_type}.pkl"))
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
@@ -387,7 +408,7 @@ for dataset in datasets:
                         #--------------------------------------------------------------#
                         # save trained model and get scores
                         #--------------------------------------------------------------#
-                        if framework_name == 'tensorflow':
+                        if framework_name in ('tensorflow', 'keras'):
                             if not args.skip_train:
                                 model.save(_save_model_path) 
 
@@ -395,7 +416,10 @@ for dataset in datasets:
                             # TODO check: is it a cause of "CUDA_ERROR_ILLEGAL_ADDRESS"? should we reload the model from the pass?
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             predictions = model.predict(X_test).argmax(1)
-                        elif framework_name == 'pytorch':
+                        elif framework_name in ('pytorch', 'torch'):
+                            if not args.skip_train:
+                                torch.save(model.state_dict(), _save_model_path) 
+
                             from torch_utils import calc_loss_acc_output
                             model.eval()
                             loss_function = model.get_loss_function()
@@ -462,9 +486,9 @@ for dataset in datasets:
                     if model is not None:
                         del model
 
-                    if framework_name == 'tensorflow':
-                        tf.keras.backend.clear_session()
-                    elif framework_name == 'pytorch':
+                    if framework_name in ('tensorflow', 'keras'):
+                        keras.backend.clear_session()
+                    elif framework_name in ('pytorch', 'torch'):
                         torch.cuda.empty_cache()
                     else:
                         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
