@@ -50,6 +50,7 @@ parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
 parser.add_argument('--tensorboard', action='store_true')
 parser.add_argument('--use_data_normalization', action='store_true')
 parser.add_argument('--show_epoch_time_detail', action='store_true')
+parser.add_argument('--keras_no_jit', action='store_true')
 
 args = parser.parse_args()
 
@@ -322,6 +323,8 @@ for dataset in datasets:
                     except Exception as e:
                         raise NotImplementedError(f'The model {model_name} is not implemented enough yet: {e}')
 
+                    if framework_name in ('tensorflow', 'keras') and IS_KERAS_VERSION_GE_3 and args.keras_no_jit:
+                        model.jit_compile=False
 
                     history = None
                     if args.skip_train:

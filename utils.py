@@ -259,7 +259,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
                 torch.save(_model.state_dict(), checkpoint_path)
 
         history = pd.DataFrame(data = np.zeros((len(accuracy_train_results),5),dtype=float), 
-                               columns=['train_acc','train_loss','val_acc','val_loss','lr'])
+                               columns=['accuracy','loss','val_accuracy','val_loss','lr'])
         history['accuracy'] = accuracy_train_results
         history['loss'] = loss_train_results
         history['val_accuracy'] = accuracy_validation_results
