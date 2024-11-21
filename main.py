@@ -144,7 +144,7 @@ for dataset in datasets:
     if args.optuna:
         study_name = f'{model_name}_{dataset}_{args.optuna_study_suffix}'  # Unique identifier of the study.
         storage_name = f"sqlite:///{study_name}.db"
-        study = optuna.create_study(directions=["maximize", "minimize", "maximize"],
+        study = optuna.create_study(directions=["maximize", "minimize", "maximize", "minimize"],
                                     study_name=study_name, 
                                     storage=storage_name, 
                                     #pruner=optuna.pruners.HyperbandPruner(), 
@@ -416,7 +416,8 @@ for dataset in datasets:
                                 model.save(_save_model_path) 
 
                             # Results for each model
-                            # TODO check: is it a cause of "CUDA_ERROR_ILLEGAL_ADDRESS"? should we reload the model from the pass?
+                            val_scores = model.evaluate(X_val, y_val, verbose=1)
+                            val_predictions = model.predict(X_val).argmax(1)
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             predictions = model.predict(X_test).argmax(1)
                         elif framework_name in ('pytorch', 'torch'):
@@ -426,9 +427,11 @@ for dataset in datasets:
                             from torch_utils import calc_loss_acc_output
                             model.eval()
                             loss_function = model.get_loss_function()
+                            loss_val, acc_val, val_predictions = calc_loss_acc_output(model, loss_function, X_val, y_val)
                             loss_test, acc_test, predictions = calc_loss_acc_output(model, loss_function, X_test, y_test)
                             model.train()
-                            scores = [acc_test, loss_test]
+                            val_scores = [loss_val, acc_val]
+                            scores = [loss_test, acc_test]
 
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
@@ -466,13 +469,21 @@ for dataset in datasets:
                         normalised_confusion_matrix_df = pd.DataFrame(normalised_confusion_matrix, index=labels, columns=labels)
                         report.write(f"Normalised Confusion Matrix: True\n{normalised_confusion_matrix_df}\n\n\n")
 
+                        val_clr = classification_report(y_val.argmax(1), val_predictions,
+                                                    labels=np.unique(y_val.argmax(1)), output_dict=True, zero_division=0.0)
+
                         clr = classification_report(y_test.argmax(1), predictions,
                                                     labels=np.unique(y_test.argmax(1)), output_dict=True, zero_division=0.0)
 
-                        pass_score = {'mf1': clr['macro avg']['f1-score'], 
+                        pass_score = {
+                                'mf1': clr['macro avg']['f1-score'], 
                                 'wf1': clr['weighted avg']['f1-score'],
                                 'acc': scores[1],
-                                'loss': scores[0]}
+                                'loss': scores[0],
+                                'val_mf1': val_clr['macro avg']['f1-score'], 
+                                'val_wf1': val_clr['weighted avg']['f1-score'],
+                                'val_acc': val_scores[1],
+                                'val_loss': val_scores[0]}
 
                         if best_model_weight_path is None or best_score[args.best_selection_metrics] < pass_score[args.best_selection_metrics]:
                             best_score = pass_score
@@ -497,7 +508,7 @@ for dataset in datasets:
                         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                     gc.collect()
 
-                    return best_score['mf1'], best_score['loss'], best_score['acc']
+                    return best_score['mf1'], best_score['loss'], best_score['val_mf1'], best_score['val_loss']
 
         if args.optuna:
             study.optimize(objective, n_trials=args.optuna_num_of_trial)
