@@ -12,11 +12,10 @@ This is a benchmark utility for IMU-based HAR models.
 Use of this benchmark in publications must be acknowledged by referencing the following publication [1]. 
 We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publications.
 
-- Yu Enokibori. 2023. rTsfNet: a DNN model with Multi-head 3D Rotation and Time Series Feature Extraction for IMU-based Human Activity Recognition. arXiv:2310.19283 [cs.HC]
-- https://doi.org/10.48550/arXiv.2310.19283 (or https://arxiv.org/abs/2310.19283 )
+- Yu Enokibori. 2024. rTsfNet: a DNN Model with Multi-head 3D Rotation and Time Series Feature Extraction for IMU-based Human Activity Recognition. Proc. ACM Interact. Mob. Wearable Ubiquitous Technol. 8, 4, Article 202 (December 2024), 26 pages, https://doi.org/10.1145/3699733
+- ~Yu Enokibori. 2023. rTsfNet: a DNN model with Multi-head 3D Rotation and Time Series Feature Extraction for IMU-based Human Activity Recognition. arXiv:2310.19283 [cs.HC],  https://doi.org/10.48550/arXiv.2310.19283 (or https://arxiv.org/abs/2310.19283 )~
 
-## NOTE
-The DOI and citation text will be updated for formal one. So, please check here before you make a submission.
+~## NOTE The DOI and citation text will be updated for a formal one. So, please check here before you make a submission.~
 
 # How to run
 ```
