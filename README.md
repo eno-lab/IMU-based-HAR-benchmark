@@ -22,7 +22,7 @@ We recommend to refer to this benchmark as the "IMU-based HAR Benchmark" in publ
 usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model_name MODEL_NAME [--ispl_datareader] [--class_weight] [--epochs EPOCHS] 
                [--boot_strap_epochs BOOT_STRAP_EPOCHS] [--batch_size BATCH_SIZE] [--patience PATIENCE]
                [--shuffle_on_train] [--lr_magnif LR_MAGNIF] [--lr_magnif_on_plateau LR_MAGNIF_ON_PLATEAU] [--lr_auto_adjust_based_bs] [--mixed_precision MIXED_PRECISION]
-               [--pretrained_model PRETRAINED_MODEL] [--two_pass] [--skip_train] [--best_selection_metric BEST_SELECTION_METRIC]
+               [--pretrained_model PRETRAINED_MODEL] [--skip_train] [--best_selection_metric BEST_SELECTION_METRIC]
                [--optuna] [--optuna_study_suffix OPTUNA_STUDY_SUFFIX] [--optuna_num_of_trial OPTUNA_NUM_OF_TRIAL]
 
 optional arguments:
@@ -41,7 +41,6 @@ optional arguments:
   --lr_auto_adjust_based_bs                                 # disable auto lr adjustment based on batch size, NOT RECOMMENDED for most cases
   --mixed_precision MIXED_PRECISION                         # default: None, global policy for, e.g., tf.keras.mixed_precision.set_global_policy
   --pretrained_model PRETRAINED_MODEL                       # default: None, the path for a pretrained model file
-  --two_pass                                                # two path training. EXPERIMENTAL, 1st: no shuffle/class_weight, 2nd shuf/clw(if enabled) 
   --skip_train                                              # evaluation only mode
   --best_selection_metric BEST_SELECTION_METRIC             # metric to select best one from the best-low-val-loss or the final-epoch models
   --optuna                                                  # run optuna based parameter optimization 

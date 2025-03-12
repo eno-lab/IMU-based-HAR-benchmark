@@ -3,7 +3,7 @@ import re
 
 import numpy as np
 import pandas as pd
-from keras_utils import IS_KERAS_VERSION_GE_3
+from keras_utils import IS_KERAS_VERSION_GE_3, StopWithNan
 
 def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test, 
                    _epochs=20, early_stopping_patience=10, boot_strap_epochs=0,
@@ -103,7 +103,7 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
         callbacks = []
         if time_callback is not None:
             callbacks.append(time_callback)
-
+        callbacks.append(StopWithNan())
         callbacks.append(EarlyStopping(patience=early_stopping_patience, 
                                        start_from_epoch=boot_strap_epochs))
 
@@ -118,10 +118,17 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
             callbacks.append(TensorBoard(log_dir=_log_dir, histogram_freq=1))
 
         # Reduce Learning rate after plateau
-        callbacks.append(ReduceLROnPlateau(monitor='loss', 
-                                           factor=lr_magnif_on_plateau,
-                                           patience=reduce_lr_on_plateau_patience,
-                                           min_lr=0.00000001, verbose=1))
+        if lr_magnif_on_plateau > 0 and reduce_lr_on_plateau_patience > 0:
+            callbacks.append(ReduceLROnPlateau(monitor='loss', 
+                                               factor=lr_magnif_on_plateau,
+                                               patience=reduce_lr_on_plateau_patience,
+                                               min_lr=0.00000001, verbose=1))
+        elif lr_magnif_on_plateau < 0 or reduce_lr_on_plateau_patience < 0:
+            callbacks.append(ReduceLROnPlateau(monitor='loss', 
+                                               factor=0.1,
+                                               patience=1000000000000,
+                                               min_lr=0.00000001, verbose=1))
+
 
         _fit_config = {'batch_size': batch_size,
                        'validation_data': (_X_test, _y_test),

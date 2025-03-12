@@ -1,8 +1,8 @@
-from tensorflow.keras import Input
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import Conv1D, Dropout, Dense, LSTM
-from tensorflow.keras.regularizers import l2
+from keras import Input
+from keras.models import Model
+from keras.optimizers import Adam
+from keras.layers import Conv1D, Dropout, Dense, LSTM
+from keras.regularizers import l2
 
 def get_config(dataset, lr_magnif=1):
     return {'n_hidden': 128,
