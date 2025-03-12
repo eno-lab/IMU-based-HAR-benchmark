@@ -39,7 +39,6 @@ parser.add_argument('--reduce_lr_on_plateau_patience', type=int, default=10)
 parser.add_argument('--lr_auto_adjust_based_bs', action='store_true')
 parser.add_argument('--mixed_precision', default=None)
 parser.add_argument('--pretrained_model', default=None)
-parser.add_argument('--two_pass', action='store_true')
 parser.add_argument('--label_smoothing', type=zero_one_float_type, default=0.0, help='0 is disable, min=0, max=1')
 parser.add_argument('--skip_train', action='store_true')
 parser.add_argument('--best_selection_metrics', default='mf1')
@@ -51,6 +50,8 @@ parser.add_argument('--tensorboard', action='store_true')
 parser.add_argument('--use_data_normalization', action='store_true')
 parser.add_argument('--show_epoch_time_detail', action='store_true')
 parser.add_argument('--keras_no_jit', action='store_true')
+parser.add_argument('--tf_debug_v2', action='store_true')
+parser.add_argument('--tf_debug_v2_log_dir', default='tfdbg2_logdir')
 
 args = parser.parse_args()
 
@@ -119,12 +120,14 @@ if framework_name in ('keras', 'tensorflow'):
             tf.config.experimental.set_memory_growth(gpu, True)
         # ...................................................................................#
         # for debug
-        # debug_log_dir = "tfdbg2_logdir"
-        # os.makedirs(debug_log_dir, exist_ok=True)
-        # tf.debugging.experimental.enable_dump_debug_info(
-        #         debug_log_dir,
-        #         tensor_debug_mode="FULL_HEALTH",
-        #         circular_buffer_size=-1)
+        if args.tf_debug_v2:
+            debug_log_dir = args.tf_debug_v2_log_dir
+            os.makedirs(debug_log_dir, exist_ok=True)
+            tf.config.set_soft_device_placement(True) # necessary for TPU
+            tf.debugging.experimental.enable_dump_debug_info(
+                    debug_log_dir,
+                    tensor_debug_mode="FULL_HEALTH",
+                    circular_buffer_size=-1)
         # ...................................................................................#
 
     if args.mixed_precision is not None:
@@ -276,47 +279,25 @@ for dataset in datasets:
                 input_shape = X_train.shape
 
                 model = None
+                clw = args.class_weight
+                for _ in range(1):
 
-                for pass_n, clw in enumerate([False, args.class_weight] if args.two_pass else [args.class_weight]):
-                    pass_n +=1
-
-                    if pass_n == 2 and model is not None:
-                        del model
                     try:
                         if args.optuna:
                             hyperparameters  = mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)
                         else:
                             hyperparameters  = mod.get_config(dataset, lr_magnif=lr_magnif)
 
-                        if pass_n == 1:
-                            if args.pretrained_model is not None:
-                                if framework_name in ('tensorflow', 'keras'):
-                                    if IS_KERAS_VERSION_GE_3:
-                                        model = keras.models.load_model(args.pretrained_model)
-                                    else:
-                                        model = keras.saving.load_model(args.pretrained_model)
-                                elif framework_name in ('pytorch', 'torch'):
-                                    model = mod.gen_model(input_shape, n_classes, 
-                                                          recommended_out_loss, recommended_out_activ, 
-                                                          METRICS, hyperparameters)
-                                    model.load_state_dict(torch.load(args.pretrained_model, weights_only=True))
-                                else:
-                                    raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
-                            else:
-                                model = mod.gen_model(input_shape, n_classes, 
-                                                      recommended_out_loss, recommended_out_activ, 
-                                                      METRICS, hyperparameters)
-
-                        elif pass_n == 2:
+                        model = mod.gen_model(input_shape, n_classes, 
+                                              recommended_out_loss, recommended_out_activ, 
+                                              METRICS, hyperparameters)
+                        if args.pretrained_model is not None:
                             if framework_name in ('tensorflow', 'keras'):
-                                if IS_KERAS_VERSION_GE_3:
-                                    model = keras.models.load_model(best_model_weight_path)
-                                else:
-                                    model = keras.saving.load_model(best_model_weight_path)
+                                model.load_weights(args.pretrained_model) 
                             elif framework_name in ('pytorch', 'torch'):
-                                model.load_state_dict(torch.load(best_model_weight_path, weights_only=True))
+                                model.load_state_dict(torch.load(args.pretrained_model, weights_only=True))
                             else:
-                                raise NotImplementedError(f'Two pass with {framework_name} is not implemented enough yet')
+                                raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
                         for key, item in hyperparameters.items():
                             print(f"{key.replace('_', ' ').capitalize()}: {item}")
@@ -340,7 +321,7 @@ for dataset in datasets:
                                                             early_stopping_patience=early_stopping_patience, 
                                                             boot_strap_epochs = args.boot_strap_epochs,
                                                             _epochs=epochs, _save_name=save_name, _log_dir=log_dir,
-                                                            shuffle_on_train = shuffle_on_train if pass_n == 1 else True,
+                                                            shuffle_on_train = shuffle_on_train,
                                                             batch_size = batch_size, no_weight = not clw,
                                                             lr_magnif_on_plateau = args.lr_magnif_on_plateau,
                                                             reduce_lr_on_plateau_patience=reduce_lr_on_plateau_patience,
@@ -399,12 +380,11 @@ for dataset in datasets:
                         print(model_type)
                         print('###############################################################################')
 
-                        pass_midfix = f'_pass-{pass_n}' if args.two_pass else ''
                         if framework_name in ('tensorflow', 'keras'):
                             # .keras model is faster than .h5 on keras3. (on Keras2, .h5 is better)
-                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}{pass_midfix}_{model_type}.{'keras' if IS_KERAS_VERSION_GE_3 else 'h5'}")) # h5 is fast in keras2
+                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.{'keras' if IS_KERAS_VERSION_GE_3 else 'h5'}")) # h5 is fast in keras2
                         elif framework_name in ('pytorch', 'torch'):
-                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}{pass_midfix}_{model_type}.pkl"))
+                            _save_model_path = os.path.abspath(os.path.join('trained_models', dataset, f"{file_prefix}_{model_type}.pkl"))
                         else:
                             raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
 
