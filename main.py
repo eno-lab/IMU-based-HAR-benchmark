@@ -383,6 +383,7 @@ for dataset in datasets:
 
                     best_model_weight_path = None
                     best_score = None
+                    best_predictions = None
                     for model_type in ["last_model", "best_model"]:
                         if model_type == 'best_model':
                             if best_model_path is None:
@@ -488,13 +489,14 @@ for dataset in datasets:
                         if best_model_weight_path is None or best_score[args.best_selection_metrics] < pass_score[args.best_selection_metrics]:
                             best_score = pass_score
                             best_model_weight_path = _save_model_path
+                            best_predictions = predictions
 
                     text = f"Finished working on: {model_name} at: {datetime.now()} -> {time() - start}"
                     print(text)
                     report.write(f"{text}\n\n")
 
                     if not args.optuna:
-                        total_prediction.append(predictions)
+                        total_prediction.append(best_predictions)
                         total_true.append(y_test.argmax(axis=1))
 
                     if model is not None:
