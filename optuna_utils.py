@@ -22,7 +22,7 @@ def _atomic_move(src: Path, dst: Path) -> None:
 def _atomic_write_json(dst: Path, payload: dict) -> None:
     # Atomic JSON write using temp file and replace.
     dst.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dst.with_name(f".tmp.{dst.name}.{uuid.uuid4().hex}")
+    tmp = dst.with_name(f".tmp.{uuid.uuid4().hex}")
     data = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2)
     with tmp.open("w", encoding="utf-8") as f:
         f.write(data)
@@ -68,6 +68,8 @@ def commit_finished_results_to_optuna_dbs(
     - If the target study does not exist, raise an error (do not create).
     - Errors are not swallowed; this function raises exceptions.
     """
+    import optuna 
+
     finished_path = Path(finished_dir)
     db_base = Path(db_dir)
     committed_path = Path(committed_dir)
@@ -103,6 +105,7 @@ def commit_finished_results_to_optuna_dbs(
             norm_values = _normalize_values(values)
             study.tell(trial_number, norm_values)
         elif state_str == "FAIL":
+            from optuna.trial import TrialState
             study.tell(trial_number, state=TrialState.FAIL)
         else:
             raise ValueError(f"{fp}: unsupported state={state_str!r}")
@@ -119,6 +122,7 @@ def run_predefined_trial(
     invalid_dir: str = "optuna_invalid_predefined_trials",
     running_dir: str = "optuna_running_predefined_trials",
     finished_dir: str = "optuna_finished_predefined_trials",
+    failed_dir: str = "optuna_failed_predefined_trials",
 ) -> None:
     """
     Execute a predefined trial file.
@@ -142,23 +146,14 @@ def run_predefined_trial(
     invalid_dir = Path(invalid_dir)
     running_dir = Path(running_dir)
     finished_dir = Path(finished_dir)
+    failed_dir = Path(failed_dir)
 
     # ---------------------------------------------------------------
     # 1) Move the original file to the running directory (atomic).
     # ---------------------------------------------------------------
     unique_name = f"{path.stem}.running.{int(time.time())}.{uuid.uuid4().hex}{path.suffix}"
     running_path = running_dir / unique_name
-
-    try:
-        _atomic_move(path, running_path)
-    except Exception as e:
-        invalid_dir.mkdir(parents=True, exist_ok=True)
-        invalid_path = invalid_dir / f"{path.stem}.move_error.{int(time.time())}.{uuid.uuid4().hex}{path.suffix}"
-        _atomic_write_json(
-            invalid_path,
-            {"error": {"type": type(e).__name__, "message": str(e)}},
-        )
-        return
+    _atomic_move(path, running_path)
 
     # ---------------------------------------------------------------
     # 2) Load and validate the moved file.
@@ -178,19 +173,12 @@ def run_predefined_trial(
         if not isinstance(trial_number, int):
             raise ValueError("Missing or invalid trial_number in predefined trial file.")
 
-    except Exception:
+    except Exception as e:
         invalid_dir.mkdir(parents=True, exist_ok=True)
         invalid_name = f"{running_path.stem}.invalid.{int(time.time())}.{uuid.uuid4().hex}{running_path.suffix}"
         invalid_path = invalid_dir / invalid_name
-
-        try:
-            _atomic_move(running_path, invalid_path)
-        except Exception:
-            try:
-                running_path.unlink()
-            except FileNotFoundError:
-                pass
-        return
+        _atomic_move(running_path, invalid_path)
+        raise e
 
     # ---------------------------------------------------------------
     # 3) Execute objective(trial).
@@ -236,7 +224,12 @@ def run_predefined_trial(
     # 5) Remove running file.
     # ---------------------------------------------------------------
     try:
-        running_path.unlink()
+        if state == "FAIL":
+            unique_name = f"{path.stem}.failed.{int(time.time())}.{uuid.uuid4().hex}{path.suffix}"
+            failed_path = failed_dir / unique_name
+            _atomic_move(path, failed_path)
+        else:
+            running_path.unlink()
     except FileNotFoundError:
         pass
 
@@ -419,7 +412,17 @@ def load_predefined_trial(path):
             raise ValueError(f"Invalid parameter name (not str): {k!r}")
         clean_params[k] = v
 
-    return PredefinedTrial(clean_params)
+    # Validate that trial_number exists and is an integer.
+    if "trial_number" not in data:
+        raise ValueError("wrapped predefined trial must contain 'trial_number'")
+
+    trial_number = data["trial_number"]
+    if not isinstance(trial_number, int):
+        raise ValueError(
+            f"'trial_number' must be int, got {type(trial_number).__name__}"
+        )
+
+    return PredefinedTrial(trial_number, clean_params)
 
 
 class PredefinedTrial:
@@ -466,12 +469,14 @@ class PredefinedTrial:
     5.5
     """
 
-    def __init__(self, params: dict):
+    def __init__(self, number: int, params: dict):
         """
         Initialize a PredefinedTrial with fixed parameter values.
 
         Parameters
         ----------
+        number : int
+            Trial number
         params : dict
             Mapping from parameter name to value.
             Values must already be validated by the ask/sampling side.
@@ -486,8 +491,17 @@ class PredefinedTrial:
         >>> t.params
         {'a': 1}
         """
+        self._number = number
         self.params = dict(params)
         self._used = set()
+
+    @property
+    def number(self) -> int | None:
+        """
+        Trial number provided from predefined JSON.
+        This is read-only metadata for compatibility with existing objectives.
+        """
+        return self._number
 
     def _get(self, name: str):
         """

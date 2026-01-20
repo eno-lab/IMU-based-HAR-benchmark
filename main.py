@@ -568,7 +568,7 @@ for dataset in datasets:
                     optuna_utils.save_predefined_params_from_trial(path, trial, study_name=study.study_name)
 
             elif args.optuna_run_a_predefined_trial:
-                run_predefined_trial(
+                optuna_utils.run_predefined_trial(
                     args.optuna_run_a_predefined_trial,
                     objective,
                     invalid_dir=args.optuna_invalid_predefined_trials_dir,
@@ -576,7 +576,7 @@ for dataset in datasets:
                     finished_dir=args.optuna_finished_predefined_trials_dir,
                 )
             elif args.optuna_tell_predefined_trial_results:
-                commit_finished_results_to_optuna_dbs(
+                optuna_utils.commit_finished_results_to_optuna_dbs(
                     args.optuna_finished_predefined_trials_dir,
                     committed_dir=args.optuna_committed_results_dir,
                 )
