@@ -1,14 +1,17 @@
 import os
 import gc
 import sys
+import re
 import pandas as pd
 import numpy as np
 import importlib
-from datetime import datetime
+import optuna_utils
+from pathlib import Path
 from time import time
-from utils import evaluate_model
+from utils import evaluate_model, optimize_thresholds_coordinate_descent, predict_with_thresholds, evaluate_with_thresholds
+from datetime import datetime
 
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, f1_score
 
 from datareader import gen_datareader
 
@@ -39,12 +42,22 @@ parser.add_argument('--reduce_lr_on_plateau_patience', type=int, default=10)
 parser.add_argument('--lr_auto_adjust_based_bs', action='store_true')
 parser.add_argument('--mixed_precision', default=None)
 parser.add_argument('--pretrained_model', default=None)
-parser.add_argument('--label_smoothing', type=zero_one_float_type, default=0.0, help='0 is disable, min=0, max=1')
+parser.add_argument('--label_smoothing', type=zero_one_float_type, default=0.0, help='0 disables the feature, min=0, max=1')
 parser.add_argument('--skip_train', action='store_true')
 parser.add_argument('--best_selection_metrics', default='mf1')
 parser.add_argument('--optuna', action='store_true')
 parser.add_argument('--optuna_study_suffix', default='')
 parser.add_argument('--optuna_num_of_trial', type=int, default=10)
+parser.add_argument('--optuna_nsga_ii_population_size', type=int, default=32)
+parser.add_argument('--optuna_predefine_params_N', type=int, default=0, 
+        help='0 disables the feature, and -1 uses the value of optuna_nsga_ii_population_size')
+parser.add_argument('--optuna_predefined_trials_dir', default='optuna_predefined_trials')
+parser.add_argument('--optuna_invalid_predefined_trials_dir', default='optuna_invalid_predefined_trials')
+parser.add_argument('--optuna_running_predefined_trials_dir', default='optuna_running_predefined_trials')
+parser.add_argument('--optuna_finished_predefined_trials_dir', default='optuna_finished_predefined_trials')
+parser.add_argument('--optuna_committed_results_dir', default='optuna_committed_results')
+parser.add_argument('--optuna_tell_predefined_trial_results', action='store_true')
+parser.add_argument('--optuna_run_a_predefined_trial', default=None, help='If a predefined trial path is set, run it.')
 parser.add_argument('--downsampling_ignore_rate', type=float, default=0)
 parser.add_argument('--tensorboard', action='store_true')
 parser.add_argument('--use_data_normalization', action='store_true')
@@ -56,6 +69,7 @@ parser.add_argument('--tf_debug_v2_log_dir', default='tfdbg2_logdir')
 args = parser.parse_args()
 
 import optuna
+import optunahub
 import logging
 import sys
 # Add stream handler of stdout to show the messages
@@ -145,13 +159,23 @@ for dataset in datasets:
     file_prefix = f"{training_id}_{model_name}_{dataset}"
 
     if args.optuna:
-        study_name = f'{model_name}_{dataset}_{args.optuna_study_suffix}'  # Unique identifier of the study.
+        if args.optuna_study_suffix:
+            study_name = f'{model_name}_{dataset}_{args.optuna_study_suffix}'  # Unique identifier of the study.
+        else:
+            study_name = f'{model_name}_{dataset}'  # Unique identifier of the study.
+        study_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", study_name)
         storage_name = f"sqlite:///{study_name}.db"
-        study = optuna.create_study(directions=["maximize", "minimize", "maximize", "minimize"],
+
+        directions = ["maximize", "maximize"]
+        if hasattr(mod, 'get_optim_optional_objective_values'):
+            directions += mod.get_optim_optional_objective_value_order()
+
+        study = optuna.create_study(directions=directions,
                                     study_name=study_name, 
                                     storage=storage_name, 
-                                    #pruner=optuna.pruners.HyperbandPruner(), 
+                                    sampler=optuna.samplers.NSGAIISampler(population_size=args.optuna_nsga_ii_population_size),
                                     load_if_exists=True)
+
 
     if args.ispl_datareader:
         from ispl_utils import load_dataset, get_loss_and_activation
@@ -168,7 +192,6 @@ for dataset in datasets:
             recommended_out_loss = keras.losses.CategoricalCrossentropy(label_smoothing=args.label_smoothing),
         else:
             raise NotImplementedError(f'label_smoothing is supported on tf only')
-
 
     if downsampling_ignore_rate > 0:
         def downsampling(X, y):
@@ -288,12 +311,18 @@ for dataset in datasets:
                         else:
                             hyperparameters  = mod.get_config(dataset, lr_magnif=lr_magnif)
 
-                        model = mod.gen_model(input_shape, n_classes, 
-                                              recommended_out_loss, recommended_out_activ, 
-                                              METRICS, hyperparameters)
+                        if args.pretrained_model is not None and args.skip_train:
+                            if framework_name in ('tensorflow', 'keras'):
+                                model = keras.saving.load_model(args.pretrained_model)
+                        else:
+                            model = mod.gen_model(input_shape, n_classes, 
+                                                  recommended_out_loss, recommended_out_activ, 
+                                                  METRICS, hyperparameters)
+
                         if args.pretrained_model is not None:
                             if framework_name in ('tensorflow', 'keras'):
-                                model.load_weights(args.pretrained_model) 
+                                if not args.skip_train:
+                                    model.load_weights(args.pretrained_model) 
                             elif framework_name in ('pytorch', 'torch'):
                                 model.load_state_dict(torch.load(args.pretrained_model, weights_only=True))
                             else:
@@ -398,9 +427,32 @@ for dataset in datasets:
 
                             # Results for each model
                             val_scores = model.evaluate(X_val, y_val, verbose=1)
-                            val_predictions = model.predict(X_val).argmax(1)
+                            val_pred_probs = model.predict(X_val)
+                            tr_taus, _, _ = optimize_thresholds_coordinate_descent(
+                                       val_pred_probs, 
+                                       y_val,
+                                       num_classes=val_pred_probs.shape[1])
+                            val_mf1, val_predictions = evaluate_with_thresholds(val_pred_probs, y_val, tr_taus)
+                            orig_val_mf1 = f1_score(
+                                y_val.argmax(1),
+                                val_pred_probs.argmax(1),
+                                average="macro",
+                                labels=list(range(n_classes)),
+                                zero_division=0,
+                            )
+                            print(f"original val mf1: {orig_val_mf1}")
+                            print(f"optimized val mf1: {val_mf1}")
                             scores = model.evaluate(X_test, y_test, verbose=1)
-                            predictions = model.predict(X_test).argmax(1)
+                            test_pred_probs = model.predict(X_test)
+                            predictions = predict_with_thresholds(test_pred_probs, tr_taus)
+                            orig_test_mf1 = f1_score(
+                                y_test.argmax(1),
+                                test_pred_probs.argmax(1),
+                                average="macro",
+                                labels=list(range(n_classes)),
+                                zero_division=0,
+                            )
+                            print(f"original test mf1: {orig_test_mf1}")
                         elif framework_name in ('pytorch', 'torch'):
                             if not args.skip_train:
                                 torch.save(model.state_dict(), _save_model_path) 
@@ -410,6 +462,9 @@ for dataset in datasets:
                             loss_function = model.get_loss_function()
                             loss_val, acc_val, val_predictions = calc_loss_acc_output(model, loss_function, X_val, y_val)
                             loss_test, acc_test, predictions = calc_loss_acc_output(model, loss_function, X_test, y_test)
+
+                            # TODO implement tau based post mf1 optimization 
+
                             model.train()
                             val_scores = [loss_val, acc_val]
                             scores = [loss_test, acc_test]
@@ -490,10 +545,44 @@ for dataset in datasets:
                         raise NotImplementedError("Invalid DNN framework is specified. {framework_name=}")
                     gc.collect()
 
-                    return best_score['mf1'], best_score['loss'], best_score['val_mf1'], best_score['val_loss']
+
+                    objective_values = [best_score['mf1'], best_score['val_mf1']]
+                    if hasattr(mod, 'get_optim_optional_objective_values'):
+                        objective_values += mod.get_optim_optional_objective_values(hyperparameters)
+                    return objective_values
+
 
         if args.optuna:
-            study.optimize(objective, n_trials=args.optuna_num_of_trial)
+
+            if args.optuna_predefine_params_N != 0:
+                N = args.optuna_predefine_params_N
+                if N < 0:
+                    N = args.optuna_nsga_ii_population_size
+
+                for i in range(N):
+                    trial = study.ask()
+                    mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)
+
+                    filename = f"{study.study_name}__{trial.number:06d}.json"
+                    path = Path(args.optuna_predefined_trials_dir) / filename
+                    optuna_utils.save_predefined_params_from_trial(path, trial, study_name=study.study_name)
+
+            elif args.optuna_run_a_predefined_trial:
+                run_predefined_trial(
+                    args.optuna_run_a_predefined_trial,
+                    objective,
+                    invalid_dir=args.optuna_invalid_predefined_trials_dir,
+                    running_dir=args.optuna_running_predefined_trials_dir,
+                    finished_dir=args.optuna_finished_predefined_trials_dir,
+                )
+            elif args.optuna_tell_predefined_trial_results:
+                commit_finished_results_to_optuna_dbs(
+                    args.optuna_finished_predefined_trials_dir,
+                    committed_dir=args.optuna_committed_results_dir,
+                )
+            else:
+                study.optimize(objective, n_trials=args.optuna_num_of_trial)
+                    
             # TODO add best scors for total_prediction and total_true to support optuna optim for losocv, etc.
             # but is it necessary?
         else:
