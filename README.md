@@ -14,11 +14,20 @@ The DOI and citation text will be updated for formal one. So, please check here 
 
 # How to run
 ```
-usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model_name MODEL_NAME [--ispl_datareader] [--class_weight] [--epochs EPOCHS] 
-               [--boot_strap_epochs BOOT_STRAP_EPOCHS] [--batch_size BATCH_SIZE] [--patience PATIENCE]
-               [--shuffle_on_train] [--lr_magnif LR_MAGNIF] [--lr_magnif_on_plateau LR_MAGNIF_ON_PLATEAU] [--lr_auto_adjust_based_bs] [--mixed_precision MIXED_PRECISION]
-               [--pretrained_model PRETRAINED_MODEL] [--skip_train] [--best_selection_metric BEST_SELECTION_METRIC]
-               [--optuna] [--optuna_study_suffix OPTUNA_STUDY_SUFFIX] [--optuna_num_of_trial OPTUNA_NUM_OF_TRIAL]
+usage: [CUDA_VISIBLE_DEVICES=N] python3 -m main [-h] --datasets DATASETS --model_name MODEL_NAME 
+               [--ispl_datareader] [--class_weight] [--epochs EPOCHS] [--boot_strap_epochs BOOT_STRAP_EPOCHS]
+               [--batch_size BATCH_SIZE] [--early_stopping_patience EARLY_STOPPING_PATIENCE] [--shuffle_on_train] [--lr_magnif LR_MAGNIF]
+               [--lr_magnif_on_plateau LR_MAGNIF_ON_PLATEAU] [--reduce_lr_on_plateau_patience REDUCE_LR_ON_PLATEAU_PATIENCE] [--lr_auto_adjust_based_bs]
+               [--mixed_precision MIXED_PRECISION] [--pretrained_model PRETRAINED_MODEL] [--label_smoothing LABEL_SMOOTHING] [--skip_train]
+               [--best_selection_metrics BEST_SELECTION_METRICS] [--optuna] [--optuna_study_suffix OPTUNA_STUDY_SUFFIX]
+               [--optuna_num_of_trial OPTUNA_NUM_OF_TRIAL] [--optuna_nsga_ii_population_size OPTUNA_NSGA_II_POPULATION_SIZE]
+               [--optuna_predefine_params_N OPTUNA_PREDEFINE_PARAMS_N] [--optuna_predefined_trials_dir OPTUNA_PREDEFINED_TRIALS_DIR]
+               [--optuna_invalid_predefined_trials_dir OPTUNA_INVALID_PREDEFINED_TRIALS_DIR]
+               [--optuna_running_predefined_trials_dir OPTUNA_RUNNING_PREDEFINED_TRIALS_DIR]
+               [--optuna_finished_predefined_trials_dir OPTUNA_FINISHED_PREDEFINED_TRIALS_DIR] [--optuna_committed_results_dir OPTUNA_COMMITTED_RESULTS_DIR]
+               [--optuna_tell_predefined_trial_results] [--optuna_run_a_predefined_trial OPTUNA_RUN_A_PREDEFINED_TRIAL]
+               [--downsampling_ignore_rate DOWNSAMPLING_IGNORE_RATE] [--tensorboard] [--use_data_normalization] [--show_epoch_time_detail] [--keras_no_jit]
+               [--tf_debug_v2] [--tf_debug_v2_log_dir TF_DEBUG_V2_LOG_DIR]
 
 optional arguments:
   -h, --help                                                # show this help message and exit
@@ -41,8 +50,29 @@ optional arguments:
   --optuna                                                  # run optuna based parameter optimization 
   --optuna_study_suffix OPTUNA_STUDY_SUFFIX                 # study name suffix on optuna
   --optuna_num_of_trial OPTUNA_NUM_OF_TRIAL                 # num of trial of optuna
-  --downsampling_ignore_rate RATE                           # ignoring rate: 0<= rate < 1. default 0. E.g., if 0.3 is set for 100 samples, 70 samples are selected uniformly.
+  --optuna_nsga_ii_population_size                          # population_size of NSGA-II algorithm of optuna
+  --optuna_predefine_params_N                               # generate predefined optuna params. 
+                                                            # 0 disables the feature, and -1 uses the value of optuna_nsga_ii_population_size.
+  --optuna_predefined_trials_dir                            # The output directory of predefined optuna params. 
+                                                            # default: 'optuna_predefined_trials'
+  --optuna_invalid_predefined_trials_dir                    # The directory that invalid params detected on run are stored. 
+                                                            # default: 'optuna_invalid_predefined_trials'
+  --optuna_running_predefined_trials_dir                    # The directory that running predfined params are placed.
+                                                            # default: 'optuna_running_predefined_trials'
+  --optuna_finished_predefined_trials_dir                   # The directory that results of predfined params will be stored.
+                                                            # default: 'optuna_finished_predefined_trials'
+  --optuna_committed_results_dir                            # The directory that committed results will be stored.
+                                                            # default: 'optuna_commited_results'
+  --optuna_tell_predefined_trial_results                    # Tell the results stored on the directory pointed by --optuna_finished_predefined_trials_dir.
+  --optuna_run_a_predefined_trial                           # Run a trial with predfined params
+  --downsampling_ignore_rate RATE                           # Speed up option, using a part of dataset. rate: 0<= rate < 1. default 0. 
+                                                            # E.g., if 0.3 is set for 100 samples, 70 samples are selected uniformly.
   --tensorboard                                             # enable TensorBoard outputs to ./logs directory.
+  --use_data_normalization                                  # apply z transform for each axes of the data
+  --show_epoch_time_detail                                  # show consumed times (median) of batchs.
+  --keras_no_jit                                            # set model.jit_comple=False on Keras
+  --tf_debug_v2	                                            # If using TF, enable tf's debug_v2.
+  --tf_debug_v2_log_dir                                     # the directory that logs of tf's debug_v2 will be stored. default: 'tfdbg2_logdir'
 
 environment variable
   CUDA_VISIBLE_DEVICES=N                                    # GPU selection. -1 disable GPU.
