@@ -298,3 +298,163 @@ def evaluate_model(_model, _X_train, _y_train, _X_test, _y_test,
 
     return _model, history, checkpoint_path
 
+from sklearn.metrics import f1_score
+
+def precompute_top(probs: np.ndarray):
+    """
+    probs: (N,C) softmax probabilities
+    Returns:
+      top   : (N,) argmax class index
+      top_p : (N,) probability of argmax class
+    """
+    top = probs.argmax(axis=1)
+    top_p = probs[np.arange(len(probs)), top]
+    return top, top_p
+
+
+def pred_from_top(
+    top: np.ndarray,
+    top_p: np.ndarray,
+    taus: np.ndarray,
+    reject_label: int = -1,
+) -> np.ndarray:
+    """
+    top, top_p: outputs of precompute_top
+    taus      : (C,) thresholds
+    """
+    accept = top_p >= taus[top]
+    return np.where(accept, top, reject_label)
+
+
+def predict_with_thresholds(
+    probs: np.ndarray,
+    taus: np.ndarray,
+    reject_label: int = -1,
+) -> np.ndarray:
+    top, top_p = precompute_top(probs)
+    return pred_from_top(top, top_p, taus, reject_label)
+
+
+def evaluate_with_thresholds(
+    probs: np.ndarray,
+    y_true: np.ndarray,
+    taus: np.ndarray,
+    reject_label: int = -1,
+):
+    if y_true.ndim == 2:
+        y_true = y_true.argmax(axis=1)
+
+    top, top_p = precompute_top(probs)
+    y_pred = pred_from_top(top, top_p, taus, reject_label)
+
+    mf1 = f1_score(
+        y_true,
+        y_pred,
+        average="macro",
+        labels=list(range(len(taus))),
+        zero_division=0,
+    )
+    return mf1, y_pred
+
+
+
+def optimize_thresholds_coordinate_descent(
+    probs: np.ndarray,
+    y_true: np.ndarray,
+    num_classes: int,
+    reject_label: int = -1,
+    init_tau: float = 0.0,
+    max_iter: int = 10,
+    n_candidates: int = 200,
+    tau_min: float = 0.0,
+    tau_max: float = 0.999999,
+    verbose: bool = True,
+):
+    import numpy as np
+    from sklearn.metrics import f1_score
+
+    N, C = probs.shape
+    assert C == num_classes
+
+    if y_true.ndim == 2:
+        y_true = y_true.argmax(axis=1)
+
+    # ---- 前計算 ----
+    top, top_p = precompute_top(probs)
+
+    # ---- 候補 τ ----
+    class_candidates = []
+    for c in range(C):
+        scores = top_p[top == c]
+        if scores.size == 0:
+            class_candidates.append(np.array([init_tau]))
+            continue
+
+        uniq = np.unique(scores)
+        uniq = uniq[(uniq >= tau_min) & (uniq <= tau_max)]
+
+        if uniq.size > n_candidates:
+            qs = np.linspace(0, 1, n_candidates)
+            uniq = np.unique(np.quantile(uniq, qs))
+
+        cand = np.unique(np.concatenate([uniq, [tau_min, tau_max]]))
+        class_candidates.append(cand)
+
+    # ---- 初期状態 ----
+    taus = np.full(C, init_tau, dtype=np.float64)
+    best_y_pred = pred_from_top(top, top_p, taus, reject_label)
+    best_score = f1_score(
+        y_true,
+        best_y_pred,
+        average="macro",
+        labels=list(range(C)),
+        zero_division=0,
+    )
+
+    # ---- 座標降下 ----
+    for it in range(max_iter):
+        improved = False
+
+        for c in range(C):
+            cand = class_candidates[c]
+            if cand.size == 1:
+                continue
+
+            current_tau = taus[c]
+            local_best_tau = current_tau
+            local_best_score = best_score
+            local_best_pred = best_y_pred
+
+            for t in cand:
+                if t == current_tau:
+                    continue
+
+                taus[c] = t
+                y_pred = pred_from_top(top, top_p, taus, reject_label)
+                score = f1_score(
+                    y_true,
+                    y_pred,
+                    average="macro",
+                    labels=list(range(C)),
+                    zero_division=0,
+                )
+
+                if score > local_best_score + 1e-12:
+                    local_best_score = score
+                    local_best_tau = t
+                    local_best_pred = y_pred
+
+            taus[c] = local_best_tau
+            if local_best_score > best_score + 1e-12:
+                best_score = local_best_score
+                best_y_pred = local_best_pred
+                improved = True
+
+        if verbose:
+            print(f"[iter {it+1}] macro F1 = {best_score:.6f}")
+
+        if not improved:
+            break
+
+    return taus, best_score, best_y_pred
+
