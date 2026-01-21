@@ -157,7 +157,7 @@ for dataset in datasets:
     dataset_origin = dataset.split('-')[0]
     file_prefix = f"{training_id}_{model_name}_{dataset}"
 
-    if args.optuna and not args.optuna_run_a_predefined_trial:
+    if args.optuna and not args.optuna_run_a_predefined_trial and not args.optuna_tell_predefined_trial_results:
         if args.optuna_study_suffix:
             study_name = f'{model_name}_{dataset}_{args.optuna_study_suffix}'  # Unique identifier of the study.
         else:
