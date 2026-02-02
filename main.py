@@ -166,8 +166,12 @@ for dataset in datasets:
         storage_name = f"sqlite:///{study_name}.db"
 
         directions = ["maximize", "maximize"]
-        if hasattr(mod, 'get_optim_optional_objective_values'):
-            directions += mod.get_optim_optional_objective_value_order()
+        try:
+            mod.get_optim_optional_objective_value_order(directions, dataset)
+        except AttributeError:
+            pass
+        #except TypeError as e:
+        #    pass
 
         study = optuna.create_study(directions=directions,
                                     study_name=study_name, 
@@ -441,6 +445,9 @@ for dataset in datasets:
                             )
                             print(f"original val mf1: {orig_val_mf1}")
                             print(f"optimized val mf1: {val_mf1}")
+                            print("Val confusion matrix:")
+                            cm = confusion_matrix(y_val.argmax(axis=1), val_predictions, labels=np.arange(n_classes))
+                            print(cm)
                             scores = model.evaluate(X_test, y_test, verbose=1)
                             test_pred_probs = model.predict(X_test)
                             predictions = predict_with_thresholds(test_pred_probs, tr_taus)
@@ -546,8 +553,13 @@ for dataset in datasets:
 
 
                     objective_values = [best_score['mf1'], best_score['val_mf1']]
-                    if hasattr(mod, 'get_optim_optional_objective_values'):
-                        objective_values += mod.get_optim_optional_objective_values(hyperparameters)
+                    try:
+                        objective_values = mod.get_optim_optional_objective_values(objective_values, best_predictions, y_test.argmax(axis=1), dataset, hyperparameters)
+                    except AttributeError:
+                        pass
+                    #except TypeError as e:
+                    #    pass
+
                     return objective_values
 
 
