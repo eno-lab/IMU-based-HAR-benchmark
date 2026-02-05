@@ -102,7 +102,7 @@ class RealWorld(DataReader):
                     max_index = (max_index // 20) * 20
 
                 seq_ix = np.arange(min_index, max_index+1, 20) # where resampled at 
-                lacked_ix = seq_ix[~np.in1d(seq_ix, act_data.index.to_numpy())] # extract not included ones.
+                lacked_ix = seq_ix[~np.isin(seq_ix, act_data.index.to_numpy()).ravel()] # extract not included ones.
                 act_data = pd.concat((act_data, pd.DataFrame(index=lacked_ix)), axis=1)
                 act_data.sort_index(inplace=True) # not necessary. just in a case.
                 act_data.interpolate(inplace=True)

@@ -130,19 +130,19 @@ class DataReader:
         label_to_id = {x[0]: i for i, x in enumerate(label_map)}
         self._id_to_label = [x[1] for x in label_map]
 
-        _label_filter = np.in1d(self._data['y'], list(label_to_id.keys()))
+        _label_filter = np.isin(self._data['y'], list(label_to_id.keys())).ravel()
 
         _y = [label_to_id[y] for y in self._data['y'][_label_filter]] # copy, but small
         _y = to_categorical(np.asarray(_y, dtype=int), self.n_classes)
 
-        _f_train = np.in1d(self._data['id'], ids['train'])
-        _f_valid = np.in1d(self._data['id'], ids['validation'])
-        _f_test = np.in1d(self._data['id'], ids['test'])
+        _f_train = np.isin(self._data['id'], ids['train']).ravel()
+        _f_valid = np.isin(self._data['id'], ids['validation']).ravel()
+        _f_test = np.isin(self._data['id'], ids['test']).ravel()
 
         _id = self._data['id'][_label_filter]
-        _y_f_train = np.in1d(_id, ids['train'])
-        _y_f_valid = np.in1d(_id, ids['validation'])
-        _y_f_test =  np.in1d(_id, ids['test'])
+        _y_f_train = np.isin(_id, ids['train']).ravel()
+        _y_f_valid = np.isin(_id, ids['validation']).ravel()
+        _y_f_test =  np.isin(_id, ids['test']).ravel()
 
         _X_f_train = np.logical_and(_label_filter, _f_train)
         _X_f_valid = np.logical_and(_label_filter, _f_valid)
@@ -195,7 +195,7 @@ class DataReader:
             if len(invalid_imu_ids) != 0:
                 raise ValueError(f"Invalid sensor id(s): {invalid_imu_ids}; valid sensor ids = {valid_imu_ids}")
 
-            _filter = np.in1d(self._sensor_ids, self._combination_target_sensor_ids)
+            _filter = np.isin(self._sensor_ids, self._combination_target_sensor_ids).ravel()
             self._X_train = self._X_train[:,:,_filter]
             self._X_valid = self._X_valid[:,:,_filter]
             self._X_test = self._X_test[:,:,_filter]
@@ -228,7 +228,7 @@ class DataReader:
             shapes = {}
             for mode in ('train', 'valid', 'test'):
                 for sensor_id in self._separation_target_sensor_ids:
-                    v = eval(f'self._X_{mode}[:, :, np.in1d(self._sensor_ids, sensor_id)]')
+                    v = eval(f'self._X_{mode}[:, :, np.isin(self._sensor_ids, sensor_id).ravel()]')
                     if mode not in shapes:
                         shapes[mode] = v.shape
                     elif shapes[mode][-1] != v.shape[-1]:  # different sensor axis num

@@ -162,7 +162,7 @@ class OpportunityRealLastLabel(DataReader):
         cols = [x-1 for x in cols[:-1]] # remove label
         _cols = self._cols[:-1] # remove label
 
-        col_filter =  np.in1d(_cols, cols)
+        col_filter =  np.isin(_cols, cols).ravel()
 
         return files, label_map, x_col_filter
 

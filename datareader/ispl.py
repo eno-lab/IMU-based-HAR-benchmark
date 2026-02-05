@@ -924,7 +924,7 @@ class DataReader:
 
     def split_uci_data(self, subjectlist, _data, _labels, _subjects):
 
-        flags = np.in1d(_subjects, subjectlist)
+        flags = np.isin(_subjects, subjectlist).ravel()
         return {'inputs': _data[flags], 'targets': _labels[flags].astype(int)}
 
 
