@@ -49,8 +49,10 @@ parser.add_argument('--optuna', action='store_true')
 parser.add_argument('--optuna_study_suffix', default='')
 parser.add_argument('--optuna_num_of_trial', type=int, default=10)
 parser.add_argument('--optuna_nsga_ii_population_size', type=int, default=32)
-parser.add_argument('--optuna_predefine_params_N', type=int, default=0, 
+parser.add_argument('--optuna_predefine_params_N', type=int, default=0,
         help='0 disables the feature, and -1 uses the value of optuna_nsga_ii_population_size')
+parser.add_argument('--optuna_elite_max', type=int, default=0,
+        help='Max number of elite Pareto front trials to re-inject (0=disabled)')
 parser.add_argument('--optuna_predefined_trials_dir', default='optuna_predefined_trials')
 parser.add_argument('--optuna_invalid_predefined_trials_dir', default='optuna_invalid_predefined_trials')
 parser.add_argument('--optuna_running_predefined_trials_dir', default='optuna_running_predefined_trials')
@@ -65,6 +67,12 @@ parser.add_argument('--show_epoch_time_detail', action='store_true')
 parser.add_argument('--keras_no_jit', action='store_true')
 parser.add_argument('--tf_debug_v2', action='store_true')
 parser.add_argument('--tf_debug_v2_log_dir', default='tfdbg2_logdir')
+parser.add_argument('--config_overrides', default=None,
+                    help='Override model config values. Format: key=value,key=value (values are auto-cast to int/float)')
+parser.add_argument('--write_result_json', default=None,
+                    help='Write training results to this JSON path (non-Optuna mode)')
+parser.add_argument('--optuna_num_seeds', type=int, default=1,
+                    help='Number of seeds per trial for aggregation (1=no aggregation)')
 
 args = parser.parse_args()
 
@@ -167,7 +175,7 @@ for dataset in datasets:
 
         directions = ["maximize", "maximize"]
         try:
-            mod.get_optim_optional_objective_value_order(directions, dataset)
+            directions = mod.get_optim_optional_objective_value_order(directions, dataset)
         except AttributeError:
             pass
         #except TypeError as e:
@@ -309,10 +317,28 @@ for dataset in datasets:
                 for _ in range(1):
 
                     try:
+                        # Parse config_overrides once
+                        _config_overrides = {}
+                        if args.config_overrides:
+                            for kv in args.config_overrides.split(','):
+                                k, v = kv.split('=')
+                                k = k.strip()
+                                v = v.strip()
+                                for cast in (int, float):
+                                    try:
+                                        v = cast(v)
+                                        break
+                                    except ValueError:
+                                        continue
+                                _config_overrides[k] = v
+
                         if args.optuna:
                             hyperparameters  = mod.get_optim_config(dataset, trial, lr_magnif=lr_magnif)
                         else:
-                            hyperparameters  = mod.get_config(dataset, lr_magnif=lr_magnif)
+                            hyperparameters  = mod.get_config(dataset, lr_magnif=lr_magnif,
+                                                              config_overrides=_config_overrides)
+
+                        hyperparameters.update(_config_overrides)
 
                         if args.pretrained_model is not None and args.skip_train:
                             if framework_name in ('tensorflow', 'keras'):
@@ -560,6 +586,23 @@ for dataset in datasets:
                     #except TypeError as e:
                     #    pass
 
+                    print(f"OBJECTIVE_OUTPUT: {objective_values}")
+
+                    if args.write_result_json:
+                        if len(datasets) > 1:
+                            print("WARNING: --write_result_json with multiple datasets is not supported; skipping JSON write", file=sys.stderr)
+                        else:
+                            import json
+                            result_path = Path(args.write_result_json)
+                            result_path.parent.mkdir(parents=True, exist_ok=True)
+                            result_data = {
+                                "objective_values": [float(v) for v in objective_values],
+                                "config_overrides": args.config_overrides,
+                                "state": "COMPLETE",
+                            }
+                            with open(result_path, 'w') as f:
+                                json.dump(result_data, f, indent=2)
+
                     return objective_values
 
 
@@ -569,6 +612,49 @@ for dataset in datasets:
                 N = args.optuna_predefine_params_N
                 if N < 0:
                     N = args.optuna_nsga_ii_population_size
+
+                # エリート注入
+                elite_injected = 0
+                if args.optuna_elite_max > 0:
+                    try:
+                        elite_candidates = mod.get_elite_trials_for_injection(
+                            study, dataset, max_n=args.optuna_elite_max
+                        )
+                        if elite_candidates:
+                            sampler = study.sampler
+                            if hasattr(sampler, '_GENERATION_KEY'):
+                                gen_key = sampler._GENERATION_KEY
+                            elif hasattr(sampler, '_get_generation_key'):
+                                gen_key = sampler._get_generation_key()
+                            else:
+                                gen_key = "nsga2:generation"
+
+                            completed = [t for t in study.trials
+                                         if t.state == optuna.trial.TrialState.COMPLETE]
+                            max_gen = max((t.system_attrs.get(gen_key, -1) for t in completed), default=-1)
+                            max_gen_count = sum(1 for t in completed
+                                                if t.system_attrs.get(gen_key, -1) == max_gen)
+                            population_size = args.optuna_nsga_ii_population_size
+                            target_gen = max_gen + 1 if max_gen_count >= population_size else max_gen
+
+                            for elite_t in elite_candidates:
+                                study.add_trial(
+                                    optuna.trial.create_trial(
+                                        params=elite_t.params,
+                                        distributions=elite_t.distributions,
+                                        values=elite_t.values,
+                                        state=optuna.trial.TrialState.COMPLETE,
+                                        system_attrs={gen_key: target_gen},
+                                        user_attrs={"elite_injected": True},
+                                    )
+                                )
+                                elite_injected += 1
+                            print(f"Injected {elite_injected} elite trials into population "
+                                  f"(generation={target_gen})")
+                    except AttributeError:
+                        pass
+
+                N = max(0, N - elite_injected)
 
                 for i in range(N):
                     trial = study.ask()
@@ -590,6 +676,7 @@ for dataset in datasets:
                 optuna_utils.commit_finished_results_to_optuna_dbs(
                     args.optuna_finished_predefined_trials_dir,
                     committed_dir=args.optuna_committed_results_dir,
+                    num_seeds=args.optuna_num_seeds,
                 )
             else:
                 study.optimize(objective, n_trials=args.optuna_num_of_trial)

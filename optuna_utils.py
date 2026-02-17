@@ -57,6 +57,7 @@ def commit_finished_results_to_optuna_dbs(
     *,
     db_dir: str = ".",
     committed_dir: str = "optuna_committed_results",
+    num_seeds: int = 1,
 ) -> None:
     """
     Read finished result JSON files from finished_dir and commit them to
@@ -64,11 +65,15 @@ def commit_finished_results_to_optuna_dbs(
 
     After successful commit, move the JSON file to committed_dir.
 
+    When num_seeds > 1, group results by (study_name, trial_number) and
+    wait until all seeds are collected before committing the median.
+
     - finished_dir: pass args.optuna_finished_predefined_trials_dir directly.
     - If the target study does not exist, raise an error (do not create).
     - Errors are not swallowed; this function raises exceptions.
     """
-    import optuna 
+    import optuna
+    from optuna.trial import TrialState
 
     finished_path = Path(finished_dir)
     db_base = Path(db_dir)
@@ -77,42 +82,123 @@ def commit_finished_results_to_optuna_dbs(
     if not finished_path.exists():
         raise FileNotFoundError(f"finished_dir does not exist: {finished_path}")
 
-    for fp in sorted(finished_path.glob("*.json")):
-        data = json.loads(fp.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            raise ValueError(f"{fp}: finished result must be a JSON object")
+    all_files = sorted(finished_path.glob("*.json"))
 
-        # Mandatory fields.
-        study_name = data.get("study_name")
-        trial_number = data.get("trial_number")
-        state_str = data.get("state")
-        values = data.get("values", None)
+    if num_seeds <= 1:
+        # Original single-seed logic: process each file independently.
+        for fp in all_files:
+            data = json.loads(fp.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError(f"{fp}: finished result must be a JSON object")
 
-        if not isinstance(study_name, str) or not study_name:
-            raise ValueError(f"{fp}: missing/invalid study_name")
-        if not isinstance(trial_number, int):
-            raise ValueError(f"{fp}: missing/invalid trial_number")
-        if not isinstance(state_str, str) or not state_str:
-            raise ValueError(f"{fp}: missing/invalid state")
+            study_name = data.get("study_name")
+            trial_number = data.get("trial_number")
+            state_str = data.get("state")
+            values = data.get("values", None)
 
-        db_path = db_base / f"{study_name}.db"
-        storage_url = f"sqlite:///{db_path.as_posix()}"
+            if not isinstance(study_name, str) or not study_name:
+                raise ValueError(f"{fp}: missing/invalid study_name")
+            if not isinstance(trial_number, int):
+                raise ValueError(f"{fp}: missing/invalid trial_number")
+            if not isinstance(state_str, str) or not state_str:
+                raise ValueError(f"{fp}: missing/invalid state")
 
-        # Do NOT auto-create. Study must already exist.
-        study = optuna.load_study(study_name=study_name, storage=storage_url)
+            db_path = db_base / f"{study_name}.db"
+            storage_url = f"sqlite:///{db_path.as_posix()}"
+            study = optuna.load_study(study_name=study_name, storage=storage_url)
 
-        if state_str == "COMPLETE":
-            norm_values = _normalize_values(values)
-            study.tell(trial_number, norm_values)
-        elif state_str == "FAIL":
-            from optuna.trial import TrialState
-            study.tell(trial_number, state=TrialState.FAIL)
-        else:
-            raise ValueError(f"{fp}: unsupported state={state_str!r}")
+            # Idempotency guard: skip if trial already has a final state.
+            trial_state = study.trials[trial_number].state
+            if trial_state in (TrialState.COMPLETE, TrialState.FAIL):
+                print(f"SKIP: trial {trial_number} already {trial_state.name}; moving to committed")
+                committed_dst = committed_path / fp.name
+                _atomic_move(fp, committed_dst)
+                continue
 
-        # After successful commit, move the JSON to committed_dir.
-        committed_dst = committed_path / fp.name
-        _atomic_move(fp, committed_dst)
+            if state_str == "COMPLETE":
+                norm_values = _normalize_values(values)
+                study.tell(trial_number, norm_values)
+            elif state_str == "FAIL":
+                study.tell(trial_number, state=TrialState.FAIL)
+            else:
+                raise ValueError(f"{fp}: unsupported state={state_str!r}")
+
+            committed_dst = committed_path / fp.name
+            _atomic_move(fp, committed_dst)
+    else:
+        # Multi-seed logic: group by (study_name, trial_number), wait for
+        # num_seeds results, then commit the median of COMPLETE values.
+        import statistics
+
+        # Parse all files and group by (study_name, trial_number).
+        groups: dict[tuple[str, int], list[tuple[Path, dict]]] = {}
+        for fp in all_files:
+            data = json.loads(fp.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError(f"{fp}: finished result must be a JSON object")
+
+            study_name = data.get("study_name")
+            trial_number = data.get("trial_number")
+            state_str = data.get("state")
+
+            if not isinstance(study_name, str) or not study_name:
+                raise ValueError(f"{fp}: missing/invalid study_name")
+            if not isinstance(trial_number, int):
+                raise ValueError(f"{fp}: missing/invalid trial_number")
+            if not isinstance(state_str, str) or not state_str:
+                raise ValueError(f"{fp}: missing/invalid state")
+
+            key = (study_name, trial_number)
+            groups.setdefault(key, []).append((fp, data))
+
+        for (study_name, trial_number), entries in groups.items():
+            # Wait until we have all seeds.
+            if len(entries) < num_seeds:
+                print(f"WAIT: trial {trial_number} has {len(entries)}/{num_seeds} results; skipping")
+                continue
+
+            if len(entries) > num_seeds:
+                print(f"WARNING: trial {trial_number} has {len(entries)} results (expected {num_seeds}); using all")
+
+            db_path = db_base / f"{study_name}.db"
+            storage_url = f"sqlite:///{db_path.as_posix()}"
+            study = optuna.load_study(study_name=study_name, storage=storage_url)
+
+            # Idempotency guard.
+            trial_state = study.trials[trial_number].state
+            if trial_state in (TrialState.COMPLETE, TrialState.FAIL):
+                print(f"SKIP: trial {trial_number} already {trial_state.name}; moving all to committed")
+                for fp, _ in entries:
+                    _atomic_move(fp, committed_path / fp.name)
+                continue
+
+            # Separate COMPLETE and FAIL results.
+            complete_entries = [(fp, d) for fp, d in entries if d.get("state") == "COMPLETE"]
+            fail_entries = [(fp, d) for fp, d in entries if d.get("state") == "FAIL"]
+
+            if len(complete_entries) >= 2:
+                # Compute element-wise median of objective values.
+                all_values = [d["values"] for _, d in complete_entries]
+                n_objectives = len(all_values[0])
+                # Validate all results have same number of objectives.
+                if not all(len(v) == n_objectives for v in all_values):
+                    print(f"ERROR: trial {trial_number} has inconsistent objective dimensions; marking FAIL")
+                    study.tell(trial_number, state=TrialState.FAIL)
+                else:
+                    median_values = []
+                    for obj_idx in range(n_objectives):
+                        vals = [float(v[obj_idx]) for v in all_values]
+                        median_values.append(statistics.median(vals))
+                    study.tell(trial_number, median_values)
+                    print(f"TELL: trial {trial_number} median of {len(complete_entries)} seeds: {median_values}")
+            else:
+                # Too few COMPLETE results: mark as FAIL.
+                study.tell(trial_number, state=TrialState.FAIL)
+                print(f"TELL FAIL: trial {trial_number} only {len(complete_entries)} COMPLETE out of {num_seeds}")
+
+            # Move all seed files to committed.
+            for fp, _ in entries:
+                _atomic_move(fp, committed_path / fp.name)
 
 
 def run_predefined_trial(
@@ -227,7 +313,7 @@ def run_predefined_trial(
         if state == "FAIL":
             unique_name = f"{path.stem}.failed.{int(time.time())}.{uuid.uuid4().hex}{path.suffix}"
             failed_path = failed_dir / unique_name
-            _atomic_move(path, failed_path)
+            _atomic_move(running_path, failed_path)
         else:
             running_path.unlink()
     except FileNotFoundError:
