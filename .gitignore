@@ -179,3 +179,6 @@ tmp*
 backup*
 *.db
 parallel*
+
+# Claude Code
+CLAUDE.md
