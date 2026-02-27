@@ -73,6 +73,10 @@ parser.add_argument('--write_result_json', default=None,
                     help='Write training results to this JSON path (non-Optuna mode)')
 parser.add_argument('--optuna_num_seeds', type=int, default=1,
                     help='Number of seeds per trial for aggregation (1=no aggregation)')
+parser.add_argument('--file_prefix_postfix', default=None,
+                    help='Postfix appended to file_prefix for isolating model files (e.g. checkpoints, reports)')
+parser.add_argument('--file_prefix_override', default=None,
+                    help='Override file_prefix entirely (no timestamp). Use for predictable model save paths.')
 
 args = parser.parse_args()
 
@@ -163,7 +167,12 @@ else:
 for dataset in datasets:
 
     dataset_origin = dataset.split('-')[0]
-    file_prefix = f"{training_id}_{model_name}_{dataset}"
+    if args.file_prefix_override:
+        file_prefix = args.file_prefix_override
+    else:
+        file_prefix = f"{training_id}_{model_name}_{dataset}"
+        if args.file_prefix_postfix:
+            file_prefix = f"{file_prefix}_{args.file_prefix_postfix}"
 
     if args.optuna and not args.optuna_run_a_predefined_trial and not args.optuna_tell_predefined_trial_results:
         if args.optuna_study_suffix:
@@ -557,6 +566,18 @@ for dataset in datasets:
                             best_score = pass_score
                             best_model_weight_path = _save_model_path
                             best_predictions = predictions
+
+                    # Delete training checkpoint (redundant with best_model) and save winner
+                    if not args.skip_train:
+                        if os.path.exists(save_name):
+                            os.remove(save_name)
+                        if best_model_weight_path:
+                            import shutil
+                            winner_ext = 'keras' if IS_KERAS_VERSION_GE_3 else 'h5'
+                            winner_path = os.path.abspath(os.path.join(
+                                'trained_models', dataset, f"{file_prefix}_winner_model.{winner_ext}"))
+                            shutil.copy2(best_model_weight_path, winner_path)
+                            print(f"[model_save] Winner: {winner_path} (from {os.path.basename(best_model_weight_path)})")
 
                     text = f"Finished working on: {model_name} at: {datetime.now()} -> {time() - start}"
                     print(text)
